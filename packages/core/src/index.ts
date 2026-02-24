@@ -9,7 +9,8 @@ export {
   Money,
   JournalEntry,
   Account,
-  TemporalBalanceService
+  TemporalBalanceService,
+  BalanceService
 } from './domain/index.js';
 
 export {
