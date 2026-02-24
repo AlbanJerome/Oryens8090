@@ -33,6 +33,12 @@ export {
   TemporalBalanceProps 
 } from './entities/temporal-balance.js';
 
+export {
+  Entity,
+  EntityProps,
+  ConsolidationMethod
+} from './entities/entity.js';
+
 // Services
 export { 
   TemporalBalanceService, 
@@ -44,3 +50,8 @@ export {
   IBalanceQueryRepository,
   BalanceLine
 } from './services/BalanceService.js';
+
+export {
+  ConsolidationService,
+  FullConsolidationResult
+} from './services/ConsolidationService.js';
