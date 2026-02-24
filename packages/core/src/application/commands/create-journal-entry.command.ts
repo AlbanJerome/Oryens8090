@@ -40,6 +40,8 @@ export interface CreateJournalEntryCommand {
   idempotencyKey?: string;
   validTimeStart?: Date;
   createdBy?: string;
+  /** WO-GL-009: Permissions for override checks (e.g. accounting:post_to_closed_period). */
+  permissions?: string[];
 }
 
 export class CreateJournalEntryCommandValidator {

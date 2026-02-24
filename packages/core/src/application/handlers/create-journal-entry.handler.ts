@@ -144,8 +144,11 @@ export class CreateJournalEntryCommandHandler {
       throw new AccountNotFoundError(missingCodes[0], command.tenantId);
     }
 
-    // Validate period (JournalEntryService checks if period is CLOSED)
-    await this.journalEntryService.assertCanPost(command.tenantId, command.postingDate);
+    // Validate period: always require a period to exist; WO-GL-009: permission only overrides "closed" check
+    const allowClosedPeriod = command.permissions?.includes('accounting:post_to_closed_period');
+    await this.journalEntryService.assertCanPost(command.tenantId, command.postingDate, {
+      allowClosedPeriod: !!allowClosedPeriod
+    });
   }
 
   private async createJournalEntry(command: CreateJournalEntryCommand): Promise<JournalEntry> {

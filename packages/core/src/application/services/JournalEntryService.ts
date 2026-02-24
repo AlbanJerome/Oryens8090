@@ -11,19 +11,24 @@ export class JournalEntryService {
   constructor(private readonly periodRepository: IPeriodRepository) {}
 
   /**
-   * Throws PeriodClosedError if posting to the given date is not allowed (period is CLOSED).
-   * Call this before saving any journal entry.
+   * Validates that posting to the given date is allowed.
+   * - Always enforces that a period exists for the date (throws NO_PERIOD_FOUND otherwise).
+   * - Unless allowClosedPeriod is true, also rejects when the period is CLOSED (PeriodClosedError).
    */
-  async assertCanPost(tenantId: string, postingDate: Date): Promise<void> {
+  async assertCanPost(
+    tenantId: string,
+    postingDate: Date,
+    options?: { allowClosedPeriod?: boolean }
+  ): Promise<void> {
     const result = await this.periodRepository.canPostToDate(tenantId, postingDate);
-    if (!result.allowed) {
-      if (result.period) {
-        throw new PeriodClosedError(result.period.name, result.period.status);
-      }
+    if (!result.period) {
       throw new JournalEntryError(
         'No accounting period found for posting date',
         'NO_PERIOD_FOUND'
       );
+    }
+    if (!result.allowed && !options?.allowClosedPeriod) {
+      throw new PeriodClosedError(result.period.name, result.period.status);
     }
   }
 }
