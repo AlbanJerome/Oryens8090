@@ -50,6 +50,7 @@ export class BalanceService {
   /**
    * Get account balance at a point in valid time.
    * Sums (debit - credit) for all lines effective at or before validTime.
+   * Returns balance in the specified currency; throws if any line uses a different currency.
    */
   async getBalanceAt(
     accountId: string,
@@ -63,6 +64,7 @@ export class BalanceService {
   /**
    * Get audit balance: balance at validTime as it was known at transactionTime.
    * Used for bitemporal reporting and audit trails.
+   * Returns balance in the specified currency; throws if any line uses a different currency.
    */
   async getAuditBalanceAt(
     accountId: string,
@@ -80,12 +82,24 @@ export class BalanceService {
 
   /**
    * Sum line effects using Money (BigInt). Net per line = debit - credit.
-   * Uses first line's currency when present; otherwise default currency.
+   * Uses add(negate()) so aggregate balance can be negative (credit balance);
+   * Money.subtract() throws on negative, so we avoid it here.
+   * Always uses requestedCurrency: validates all lines match it, throws if not.
    */
-  private sumLines(lines: BalanceLine[], defaultCurrency: Currency): Money {
-    const currency =
-      lines.length > 0 ? lines[0].debitAmount.currency : defaultCurrency;
-    let sum = Money.zero(currency);
+  private sumLines(lines: BalanceLine[], requestedCurrency: Currency): Money {
+    for (const line of lines) {
+      if (line.debitAmount.currency !== requestedCurrency) {
+        throw new Error(
+          `Balance requested in ${requestedCurrency} but line has debit amount in ${line.debitAmount.currency}`
+        );
+      }
+      if (line.creditAmount.currency !== requestedCurrency) {
+        throw new Error(
+          `Balance requested in ${requestedCurrency} but line has credit amount in ${line.creditAmount.currency}`
+        );
+      }
+    }
+    let sum = Money.zero(requestedCurrency);
     for (const line of lines) {
       const net = line.debitAmount.add(line.creditAmount.negate());
       sum = sum.add(net);
