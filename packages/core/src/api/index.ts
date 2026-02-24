@@ -22,3 +22,17 @@ export {
   type TrialBalanceQuery,
   type TrialBalanceReportDto
 } from './controllers/TrialBalanceController.js';
+
+export {
+  FinancialReportController,
+  type ProfitAndLossQuery,
+  type BalanceSheetQuery
+} from './controllers/FinancialReportController.js';
+
+export {
+  type ProfitAndLossReportDto,
+  type BalanceSheetReportDto,
+  type ProfitAndLossLineDto,
+  type BalanceSheetLineDto,
+  type BalanceSheetSection
+} from './dto/FinancialReportDto.js';

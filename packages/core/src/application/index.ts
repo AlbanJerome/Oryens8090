@@ -25,6 +25,13 @@ export {
   ClosingEntryResult
 } from './services/ClosingService.js';
 
+export {
+  FinancialStatementService,
+  filterAndSum,
+  isCurrentAccount,
+  type AccountBalanceWithType
+} from './services/FinancialStatementService.js';
+
 // Interfaces
 export {
   IJournalEntryRepository,
