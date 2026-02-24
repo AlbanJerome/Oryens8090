@@ -95,6 +95,11 @@ export interface ITrialBalanceRepository {
   ): Promise<TrialBalanceAccount[]>;
 }
 
+/**
+ * WO-GL-011: Entity repository. Implementations must return the domain Entity
+ * with ownershipPercentage and consolidationMethod mapped from the database
+ * (e.g. ownership_percentage, consolidation_method).
+ */
 export interface IEntityRepository {
   findById(tenantId: string, entityId: string): Promise<Entity | null>;
   findSubsidiaries(tenantId: string, parentEntityId: string): Promise<Entity[]>;
