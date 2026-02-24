@@ -119,6 +119,38 @@ const DDL_STATEMENTS: string[] = [
     updated_at TIMESTAMPTZ
   );`,
   `CREATE INDEX IF NOT EXISTS idx_entities_tenant_parent ON entities(tenant_id, parent_entity_id);`,
+
+  `-- WO-GL-014: Audit log (append-only; trigger prevents UPDATE/DELETE)
+  CREATE TABLE IF NOT EXISTS audit_log (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL,
+    user_id VARCHAR(255),
+    action VARCHAR(128) NOT NULL,
+    entity_type VARCHAR(64),
+    entity_id VARCHAR(255),
+    payload JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );`,
+  `CREATE INDEX IF NOT EXISTS idx_audit_log_tenant_created ON audit_log(tenant_id, created_at);`,
+  `CREATE INDEX IF NOT EXISTS idx_audit_log_action ON audit_log(action);`,
+  `-- Trigger: prevent UPDATE and DELETE on audit_log (append-only)
+  CREATE OR REPLACE FUNCTION audit_log_deny_update_delete()
+  RETURNS TRIGGER AS $$
+  BEGIN
+    IF TG_OP = 'UPDATE' THEN
+      RAISE EXCEPTION 'UPDATE on audit_log is not allowed (append-only table)';
+    ELSIF TG_OP = 'DELETE' THEN
+      RAISE EXCEPTION 'DELETE on audit_log is not allowed (append-only table)';
+    END IF;
+    RETURN NULL;
+  END;
+  $$ LANGUAGE plpgsql;`,
+  `DROP TRIGGER IF EXISTS audit_log_deny_update_trigger ON audit_log;
+  CREATE TRIGGER audit_log_deny_update_trigger
+    BEFORE UPDATE ON audit_log FOR EACH ROW EXECUTE PROCEDURE audit_log_deny_update_delete();`,
+  `DROP TRIGGER IF EXISTS audit_log_deny_delete_trigger ON audit_log;
+  CREATE TRIGGER audit_log_deny_delete_trigger
+    BEFORE DELETE ON audit_log FOR EACH ROW EXECUTE PROCEDURE audit_log_deny_update_delete();`,
 ];
 
 async function runWithPg(connectionString: string): Promise<void> {

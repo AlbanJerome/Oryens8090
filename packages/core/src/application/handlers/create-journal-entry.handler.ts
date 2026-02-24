@@ -27,6 +27,7 @@ import {
 
 import { IdempotencyService } from '../services/idempotency.service.js';
 import { JournalEntryService } from '../services/JournalEntryService.js';
+import type { IAuditLogger } from '../services/audit-logger.service.js';
 
 export interface CreateJournalEntryResult {
   journalEntryId: string;
@@ -44,7 +45,8 @@ export class CreateJournalEntryCommandHandler {
     private temporalBalanceService: TemporalBalanceService,
     private eventBus: IDomainEventBus,
     private idempotencyService: IdempotencyService,
-    private journalEntryService: JournalEntryService
+    private journalEntryService: JournalEntryService,
+    private auditLogger?: IAuditLogger
   ) {}
 
   async handle(command: CreateJournalEntryCommand): Promise<CreateJournalEntryResult> {
@@ -94,6 +96,25 @@ export class CreateJournalEntryCommandHandler {
           'CreateJournalEntry',
           result
         );
+      }
+
+      // 10. WO-GL-014: Audit log (tenantId and userId in payload)
+      if (this.auditLogger) {
+        await this.auditLogger.log({
+          tenantId: command.tenantId,
+          userId: command.createdBy,
+          action: 'JournalEntryCreated',
+          entityType: 'JournalEntry',
+          entityId: journalEntry.id,
+          payload: {
+            journalEntryId: journalEntry.id,
+            entityId: command.entityId,
+            postingDate: command.postingDate.toISOString(),
+            totalAmountCents: result.totalAmountCents,
+            affectedAccounts: result.affectedAccounts,
+            sourceModule: command.sourceModule
+          }
+        });
       }
 
       return result;
