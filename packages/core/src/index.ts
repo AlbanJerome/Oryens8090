@@ -15,7 +15,8 @@ export {
   Entity,
   TemporalBalanceService,
   BalanceService,
-  ConsolidationService
+  ConsolidationService,
+  EliminationService
 } from './domain/index.js';
 
 export {

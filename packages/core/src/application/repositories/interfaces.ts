@@ -11,6 +11,15 @@ export interface IAccountRepository {
   findById(tenantId: string, accountId: string): Promise<Account | null>;
   findByCode(tenantId: string, accountCode: string): Promise<Account | null>;
   findByCodes(tenantId: string, accountCodes: string[]): Promise<Account[]>;
+  /**
+   * WO-GL-006: Intercompany transactions (counterparty_entity_id within same tenant).
+   * Returns journal entries where isIntercompany === true for the given tenant and date range.
+   */
+  findIntercompanyTransactions(
+    tenantId: string,
+    fromDate: Date,
+    toDate: Date
+  ): Promise<JournalEntry[]>;
 }
 
 export interface AccountingPeriod {
