@@ -1,0 +1,408 @@
+# WO-GL-010: General Ledger & Reporting API Specification
+openapi: 3.0.3
+info:
+  title: Oryens General Ledger API
+  description: Ledger and reporting endpoints for accounts, journal entries, trial balance, and financial statements.
+  version: 1.0.0
+
+servers:
+  - url: /api
+    description: API base path
+
+paths:
+  # --- Accounts (WO-GL-008) ---
+  /accounts/{tenantId}/{accountId}:
+    get:
+      summary: Get account by tenant and account id
+      operationId: getAccount
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: accountId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Account found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountDto' }
+        '404':
+          description: Account not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /accounts/{tenantId}/{accountId}/balance:
+    get:
+      summary: Get account balance at a point in valid time
+      operationId: getBalanceAt
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: accountId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: validTime
+          in: query
+          required: true
+          schema: { type: string, format: date-time }
+        - name: currency
+          in: query
+          schema: { type: string, example: USD }
+      responses:
+        '200':
+          description: Balance at valid time
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountBalanceDto' }
+
+  /accounts/{tenantId}/{accountId}/audit-balance:
+    get:
+      summary: Get audit balance (as known at transaction time, for validity at valid time)
+      operationId: getAuditBalanceAt
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: accountId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: validTime
+          in: query
+          required: true
+          schema: { type: string, format: date-time }
+        - name: transactionTime
+          in: query
+          required: true
+          schema: { type: string, format: date-time }
+        - name: currency
+          in: query
+          schema: { type: string, example: USD }
+      responses:
+        '200':
+          description: Audit balance
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountBalanceDto' }
+
+  # --- Journal entries (command: POST) ---
+  /journal-entries:
+    post:
+      summary: Create a journal entry (double-entry, validated)
+      operationId: createJournalEntry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateJournalEntryCommand' }
+      responses:
+        '201':
+          description: Journal entry created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CreateJournalEntryResult' }
+        '400':
+          description: Validation or business rule error (e.g. PERIOD_CLOSED, UNBALANCED_ENTRY)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/JournalEntryError' }
+
+  # --- Reports (WO-GL-012, WO-GL-013) ---
+  /reports/trial-balance:
+    get:
+      summary: Trial balance report for a period
+      operationId: getTrialBalance
+      parameters:
+        - name: tenantId
+          in: query
+          required: true
+          schema: { type: string }
+        - name: entityId
+          in: query
+          required: true
+          schema: { type: string }
+        - name: periodStart
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: periodEnd
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Trial balance with opening balance, net movement, totals
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TrialBalanceReportDto' }
+        '400':
+          description: Unbalanced ledger (total debits !== total credits)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UnbalancedLedgerError' }
+
+  /reports/profit-and-loss:
+    get:
+      summary: Profit and loss (P&L) for a period
+      operationId: getProfitAndLoss
+      parameters:
+        - name: tenantId
+          in: query
+          required: true
+          schema: { type: string }
+        - name: entityId
+          in: query
+          required: true
+          schema: { type: string }
+        - name: periodStart
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: periodEnd
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: P&L with revenue, expenses, net income (signage applied)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProfitAndLossReportDto' }
+
+  /reports/balance-sheet:
+    get:
+      summary: Balance sheet as of a date
+      operationId: getBalanceSheet
+      parameters:
+        - name: tenantId
+          in: query
+          required: true
+          schema: { type: string }
+        - name: entityId
+          in: query
+          required: true
+          schema: { type: string }
+        - name: asOfDate
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Balance sheet (assets, liabilities, equity, net income, isBalanced)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BalanceSheetReportDto' }
+
+  # --- Consolidation (WO-GL-005) ---
+  /reports/consolidated-balance-sheet:
+    get:
+      summary: Consolidated balance sheet for parent and subsidiaries
+      operationId: getConsolidatedBalanceSheet
+      parameters:
+        - name: tenantId
+          in: query
+          required: true
+          schema: { type: string }
+        - name: parentEntityId
+          in: query
+          required: true
+          schema: { type: string }
+        - name: asOfDate
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: subsidiaryEntityIds
+          in: query
+          schema:
+            type: array
+            items: { type: string }
+      responses:
+        '200':
+          description: Consolidated balance sheet (with optional NCI)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConsolidatedBalanceSheetResultDto' }
+
+components:
+  schemas:
+    AccountDto:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        tenantId: { type: string }
+        code: { type: string }
+        name: { type: string }
+        accountType: { type: string, enum: [Asset, Liability, Equity, Revenue, Expense] }
+        normalBalance: { type: string, enum: [Debit, Credit] }
+        parentAccountId: { type: string, format: uuid }
+        isSystemControlled: { type: boolean }
+        allowsIntercompany: { type: boolean }
+        createdBy: { type: string }
+        deletedAt: { type: string, format: date-time }
+
+    AccountBalanceDto:
+      type: object
+      properties:
+        accountId: { type: string }
+        amountCents: { type: integer }
+        currency: { type: string }
+        validTime: { type: string, format: date-time }
+        transactionTime: { type: string, format: date-time }
+
+    CreateJournalEntryCommand:
+      type: object
+      required: [tenantId, entityId, postingDate, sourceModule, sourceDocumentId, sourceDocumentType, description, currency, lines]
+      properties:
+        tenantId: { type: string }
+        entityId: { type: string }
+        postingDate: { type: string, format: date }
+        sourceModule: { type: string }
+        sourceDocumentId: { type: string }
+        sourceDocumentType: { type: string }
+        description: { type: string }
+        currency: { type: string, example: USD }
+        lines:
+          type: array
+          items: { $ref: '#/components/schemas/CreateJournalEntryLineCommand' }
+        isIntercompany: { type: boolean }
+        counterpartyEntityId: { type: string }
+        idempotencyKey: { type: string }
+        validTimeStart: { type: string, format: date-time }
+        createdBy: { type: string }
+        permissions: { type: array, items: { type: string } }
+
+    CreateJournalEntryLineCommand:
+      type: object
+      required: [accountCode, debitAmountCents, creditAmountCents]
+      properties:
+        accountCode: { type: string }
+        debitAmountCents: { type: integer, minimum: 0 }
+        creditAmountCents: { type: integer, minimum: 0 }
+        costCenter: { type: string }
+        description: { type: string }
+
+    CreateJournalEntryResult:
+      type: object
+      properties:
+        journalEntryId: { type: string }
+        isSuccess: { type: boolean }
+        wasIdempotent: { type: boolean }
+        affectedAccounts: { type: array, items: { type: string } }
+        totalAmountCents: { type: integer }
+
+    TrialBalanceReportDto:
+      type: object
+      properties:
+        periodStart: { type: string, format: date }
+        periodEnd: { type: string, format: date }
+        lines:
+          type: array
+          items:
+            type: object
+            properties:
+              accountCode: { type: string }
+              accountName: { type: string }
+              currency: { type: string }
+              openingBalanceCents: { type: integer }
+              periodDebitCents: { type: integer }
+              periodCreditCents: { type: integer }
+              closingBalanceCents: { type: integer }
+        totalDebitCents: { type: integer }
+        totalCreditCents: { type: integer }
+
+    ProfitAndLossReportDto:
+      type: object
+      properties:
+        periodStart: { type: string, format: date }
+        periodEnd: { type: string, format: date }
+        currency: { type: string }
+        revenue: { type: array, items: { $ref: '#/components/schemas/ProfitAndLossLineDto' } }
+        expenses: { type: array, items: { $ref: '#/components/schemas/ProfitAndLossLineDto' } }
+        totalRevenueCents: { type: integer }
+        totalExpenseCents: { type: integer }
+        netIncomeCents: { type: integer }
+
+    ProfitAndLossLineDto:
+      type: object
+      properties:
+        accountCode: { type: string }
+        accountName: { type: string }
+        accountType: { type: string }
+        amountCents: { type: integer }
+        currency: { type: string }
+
+    BalanceSheetReportDto:
+      type: object
+      properties:
+        asOfDate: { type: string, format: date }
+        currency: { type: string }
+        lines: { type: array, items: { $ref: '#/components/schemas/BalanceSheetLineDto' } }
+        totalAssetsCents: { type: integer }
+        totalLiabilitiesCents: { type: integer }
+        totalEquityCents: { type: integer }
+        netIncomeCents: { type: integer }
+        totalLiabilitiesAndEquityCents: { type: integer }
+        isBalanced: { type: boolean }
+
+    BalanceSheetLineDto:
+      type: object
+      properties:
+        accountCode: { type: string }
+        accountName: { type: string }
+        accountType: { type: string }
+        category: { type: string }
+        section: { type: string, enum: [current_assets, non_current_assets, current_liabilities, non_current_liabilities, equity] }
+        amountCents: { type: integer }
+        currency: { type: string }
+
+    ConsolidatedBalanceSheetResultDto:
+      type: object
+      properties:
+        parentEntityId: { type: string }
+        asOfDate: { type: string, format: date }
+        currency: { type: string }
+        consolidationMethod: { type: string }
+        lines:
+          type: array
+          items:
+            type: object
+            properties:
+              accountCode: { type: string }
+              accountName: { type: string }
+              amountCents: { type: integer }
+              currency: { type: string }
+              nciCents: { type: integer }
+        totalNciCents: { type: integer }
+
+    JournalEntryError:
+      type: object
+      properties:
+        message: { type: string }
+        code: { type: string }
+        details: { type: object }
+
+    UnbalancedLedgerError:
+      type: object
+      properties:
+        message: { type: string }
+        code: { type: string, example: UNBALANCED_LEDGER }
+        details:
+          type: object
+          properties:
+            totalDebitCents: { type: integer }
+            totalCreditCents: { type: integer }
+
+    Error:
+      type: object
+      properties:
+        message: { type: string }
+        code: { type: string }
