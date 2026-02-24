@@ -38,3 +38,9 @@ export {
   TemporalBalanceService, 
   ITemporalBalanceRepository 
 } from './services/temporal-balance.service.js';
+
+export {
+  BalanceService,
+  IBalanceQueryRepository,
+  BalanceLine
+} from './services/BalanceService.js';
