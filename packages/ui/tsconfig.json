@@ -13,13 +13,11 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
+    "plugins": [{ "name": "next" }],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@oryens/core": ["../core/src/index.ts"],
+      "@oryens/core/*": ["../core/src/*"]
     }
   },
   "include": [
@@ -28,7 +26,8 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "**/*.mts"
+    "**/*.mts",
+    "../core/src/**/*.ts"
   ],
   "exclude": ["node_modules"]
 }

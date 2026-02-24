@@ -48,10 +48,23 @@ function balanceToMoney(acc: TrialBalanceAccount): Money {
 }
 
 /**
- * Compute subsidiary Net Equity (sum of Equity-type account balances).
- * Equity accounts have credit normal balance, so balanceCents is negative; net equity is -balanceCents.
+ * Compute subsidiary Net Equity (pool of equity to carve out NCI).
+ * Equity accounts are credit-normal: balanceCents is negative for a credit balance.
+ * We sum -balanceCents so net equity is a positive number; NCI = nciShare × netEquity is a positive claim.
+ * Requires accountType on every account; throws if any is missing (avoids silent NCI = 0).
  */
 function subsidiaryNetEquityCents(accountMap: Map<string, TrialBalanceAccount>): number {
+  const missingType: string[] = [];
+  for (const [code, acc] of accountMap.entries()) {
+    if (acc.accountType == null || acc.accountType === '') {
+      missingType.push(code);
+    }
+  }
+  if (missingType.length > 0) {
+    throw new Error(
+      `Trial balance must include accountType for each account when computing subsidiary net equity (Full consolidation). Missing for: ${missingType.join(', ')}`
+    );
+  }
   let netEquityCents = 0;
   for (const acc of accountMap.values()) {
     if (acc.accountType === 'Equity') {
@@ -141,12 +154,20 @@ export class GetConsolidatedBalanceSheetQueryHandler {
         const subMoney = balanceToMoney(subAcc);
 
         if (subEntity.consolidationMethod === 'Full') {
-          const result = this.consolidationService.consolidateFull(
-            consolidatedMoney,
-            subMoney,
-            subEntity
-          );
-          consolidatedMoney = result.consolidated;
+          if (subAcc.accountType === 'Equity') {
+            consolidatedMoney =
+              this.consolidationService.consolidateProportional(
+                consolidatedMoney,
+                subMoney,
+                subEntity
+              );
+          } else {
+            consolidatedMoney = this.consolidationService.consolidateFullAmount(
+              consolidatedMoney,
+              subMoney,
+              subEntity
+            );
+          }
         } else if (subEntity.consolidationMethod === 'Proportional') {
           consolidatedMoney =
             this.consolidationService.consolidateProportional(
@@ -164,15 +185,53 @@ export class GetConsolidatedBalanceSheetQueryHandler {
       }
 
       const amountCents = consolidatedMoney.toCents();
+      const accountType =
+        parentAcc?.accountType ??
+        subsidiaryData
+          .map((d) => d.accountMap.get(accountCode))
+          .find((acc): acc is TrialBalanceAccount => acc != null)?.accountType;
       if (amountCents !== 0) {
         lines.push({
           accountCode,
           accountName: parentAcc?.accountName,
           amountCents,
-          currency
+          currency,
+          ...(accountType != null ? { accountType } : {}),
         });
       }
     }
+
+    const hasFullSubsidiary = subsidiaryEntities.some(
+      (s) => s.consolidationMethod === 'Full'
+    );
+    if (hasFullSubsidiary) {
+      lines.push({
+        accountCode: 'NCI',
+        accountName: 'Non-controlling interest',
+        amountCents: -totalNciCents,
+        currency,
+        accountType: 'Equity',
+      });
+    }
+
+    const totalByType = { Asset: 0, Liability: 0, Equity: 0 };
+    const allLinesHaveType = lines.every(
+      (line) =>
+        line.accountType != null &&
+        (line.accountType === 'Asset' ||
+          line.accountType === 'Liability' ||
+          line.accountType === 'Equity')
+    );
+    if (allLinesHaveType) {
+      for (const line of lines) {
+        const type = line.accountType as keyof typeof totalByType;
+        totalByType[type] += line.amountCents;
+      }
+    }
+    // Assets = Liabilities + Equity (including NCI); NCI is in lines as Equity when hasFullSubsidiary
+    const isBalanced =
+      allLinesHaveType &&
+      totalByType.Asset + totalByType.Liability + totalByType.Equity === 0;
 
     return {
       parentEntityId: query.parentEntityId,
@@ -180,7 +239,8 @@ export class GetConsolidatedBalanceSheetQueryHandler {
       currency,
       consolidationMethod: parent.consolidationMethod,
       lines,
-      totalNciCents
+      isBalanced,
+      ...(hasFullSubsidiary ? { totalNciCents } : {}),
     };
   }
 }

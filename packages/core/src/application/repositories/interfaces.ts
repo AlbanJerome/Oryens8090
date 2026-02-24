@@ -85,7 +85,11 @@ export interface TrialBalanceAccount {
   /** Signed balance in smallest unit (cents): positive = debit balance, negative = credit. */
   balanceCents: number;
   currency: string;
-  /** Account type for NCI (Full consolidation: NCI = non-controlling share × Net Equity). */
+  /**
+   * Account type (e.g. 'Asset', 'Liability', 'Equity'). Required when trial balance is used for
+   * consolidated balance sheet with Full consolidation (NCI = non-controlling share × subsidiary Net Equity).
+   * If missing, GetConsolidatedBalanceSheetQueryHandler will throw.
+   */
   accountType?: string;
 }
 

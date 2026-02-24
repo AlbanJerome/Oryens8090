@@ -19,6 +19,8 @@ export interface ConsolidatedBalanceSheetLineDto {
   accountName?: string;
   amountCents: number;
   currency: string;
+  /** Account type for balance check: Asset | Liability | Equity. */
+  accountType?: string;
   /** Non-controlling interest portion (Full method only). Present when > 0. */
   nciCents?: number;
 }
@@ -32,4 +34,6 @@ export interface ConsolidatedBalanceSheetResultDto {
   lines: ConsolidatedBalanceSheetLineDto[];
   /** Total NCI in cents (Full consolidation only). */
   totalNciCents?: number;
+  /** True when Assets = Liabilities + (Controlling Equity + NCI). */
+  isBalanced?: boolean;
 }

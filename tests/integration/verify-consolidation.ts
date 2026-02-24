@@ -8,8 +8,7 @@
  */
 
 import type { Client } from 'pg';
-// Corrected path: Up two levels to reach project root
-import type { TrialBalanceAccount } from '../../packages/core/src/application/repositories/interfaces.js';
+import type { TrialBalanceAccount } from '@oryens/core';
 
 async function main(): Promise<void> {
   const dbUrl = process.env.DATABASE_URL;
@@ -40,13 +39,8 @@ async function main(): Promise<void> {
     // --- Execution: Run GetConsolidatedBalanceSheetQueryHandler ---
     const entityRepo = await createEntityRepository(client);
     const trialBalanceRepo = createTrialBalanceRepo(client);
-    
-    // Corrected paths for core application logic
-    const { GetConsolidatedBalanceSheetQueryHandler } = await import(
-      '../../packages/core/src/application/index.js'
-    );
-    const { ConsolidationService } = await import(
-      '../../packages/core/src/domain/services/ConsolidationService.js'
+    const { GetConsolidatedBalanceSheetQueryHandler, ConsolidationService } = await import(
+      '@oryens/core'
     );
 
     const handler = new GetConsolidatedBalanceSheetQueryHandler(
@@ -78,6 +72,10 @@ async function main(): Promise<void> {
       console.error(
         `FAIL: NCI = $${totalNciCents / 100}, expected $${expectedNciCents / 100}`
       );
+      process.exit(1);
+    }
+    if (result.isBalanced !== true) {
+      console.error('FAIL: Balance sheet should be balanced (Assets = Liabilities + Equity).');
       process.exit(1);
     }
 
@@ -138,9 +136,9 @@ async function postSubsidiaryJournalEntry(
     CreateJournalEntryCommandHandler,
     JournalEntryService,
     IdempotencyService,
-    AuditLoggerService
-  } = await import('../../packages/core/src/application/index.js');
-  const { TemporalBalanceService } = await import('../../packages/core/src/domain/index.js');
+    AuditLoggerService,
+    TemporalBalanceService
+  } = await import('@oryens/core');
 
   const journalEntryRepo = createJournalEntryRepo(client);
   const auditLogRepo = createAuditLogRepo(client);
@@ -182,7 +180,7 @@ async function postSubsidiaryJournalEntry(
 
 function createJournalEntryRepo(client: Client) {
   return {
-    save: async (entry: any) => {
+    save: async (entry: import('@oryens/core').JournalEntry) => {
       await client.query(
         `INSERT INTO journal_entries (id, tenant_id, entity_id, posting_date, source_module, source_document_id, source_document_type, description, is_intercompany, valid_time_start, version)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
@@ -205,7 +203,7 @@ function createJournalEntryRepo(client: Client) {
 
 function createAuditLogRepo(client: Client) {
   return {
-    append: async (entry: any) => {
+    append: async (entry: import('@oryens/core').AuditLogEntry) => {
       await client.query(
         `INSERT INTO audit_log (tenant_id, user_id, action, entity_type, entity_id, payload)
          VALUES ($1, $2, $3, $4, $5, $6::jsonb)`,
@@ -262,9 +260,8 @@ function createTrialBalanceRepo(client: Client) {
 }
 
 async function createEntityRepository(client: Client) {
-  // Corrected path for infrastructure
-  const { EntityRepositoryPostgres } = await import('../../packages/core/src/infrastructure/index.js');
-  return new EntityRepositoryPostgres(client as any);
+  const { EntityRepositoryPostgres } = await import('@oryens/core');
+  return new EntityRepositoryPostgres(client as import('@oryens/core').PgClient);
 }
 
 main().catch((e) => {

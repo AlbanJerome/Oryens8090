@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "noEmit": true,
+    "paths": {
+      "@oryens/core": ["./packages/core/src/index.ts"],
+      "@oryens/core/*": ["./packages/core/src/*"]
+    }
+  },
+  "include": ["packages/**/*.ts", "tests/**/*.ts"],
+  "exclude": ["node_modules"]
+}

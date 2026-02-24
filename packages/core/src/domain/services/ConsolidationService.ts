@@ -40,6 +40,19 @@ export class ConsolidationService {
   }
 
   /**
+   * Full consolidation: consolidated amount only (parent + 100% of subsidiary).
+   * Use when NCI is computed at entity level from net equity; avoids unused per-account NCI.
+   */
+  consolidateFullAmount(
+    parentAmount: Money,
+    subsidiaryAmount: Money,
+    _entity: Entity
+  ): Money {
+    this.validateSameCurrency(parentAmount, subsidiaryAmount);
+    return parentAmount.add(subsidiaryAmount);
+  }
+
+  /**
    * Proportional consolidation: parent + ownership% of subsidiary only.
    */
   consolidateProportional(
