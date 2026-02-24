@@ -7,6 +7,12 @@ export * from './application/index.js';
 // API Layer (WO-GL-008)
 export * from './api/index.js';
 
+// Infrastructure (e.g. Postgres adapters)
+export {
+  EntityRepositoryPostgres,
+  type PgClient
+} from './infrastructure/index.js';
+
 // Key exports for convenience
 export {
   Money,
