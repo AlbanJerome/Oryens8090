@@ -36,6 +36,7 @@ function toAccountMap(
 
 /**
  * Convert trial balance line to Money. Handles signed balanceCents (positive = debit, negative = credit).
+ * Uses Math.abs() before fromCents so we never pass negative values (fromCents rejects them).
  */
 function balanceToMoney(acc: TrialBalanceAccount): Money {
   const currency = acc.currency as Currency;
@@ -43,7 +44,7 @@ function balanceToMoney(acc: TrialBalanceAccount): Money {
   if (cents >= 0) {
     return Money.fromCents(cents, currency);
   }
-  return Money.fromCents(-cents, currency).negate();
+  return Money.fromCents(Math.abs(cents), currency).negate();
 }
 
 /**
@@ -60,7 +61,7 @@ function multiplyByOwnershipPercentage(
   if (scaledCents >= 0) {
     return Money.fromCents(scaledCents, currency);
   }
-  return Money.fromCents(-scaledCents, currency).negate();
+  return Money.fromCents(Math.abs(scaledCents), currency).negate();
 }
 
 /**

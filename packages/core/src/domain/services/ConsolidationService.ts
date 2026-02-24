@@ -70,6 +70,7 @@ export class ConsolidationService {
 
   /**
    * Scale a Money amount by a fraction in [0, 1]. Uses cents and rounding; supports negative amounts.
+   * Uses Math.abs() before fromCents so we never pass negative values (fromCents rejects them).
    */
   scaleMoney(money: Money, fraction: number): Money {
     const currency = money.currency;
@@ -78,7 +79,7 @@ export class ConsolidationService {
     if (scaledCents >= 0) {
       return Money.fromCents(scaledCents, currency);
     }
-    return Money.fromCents(-scaledCents, currency).negate();
+    return Money.fromCents(Math.abs(scaledCents), currency).negate();
   }
 
   private validateSameCurrency(a: Money, b: Money): void {
