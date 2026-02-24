@@ -12,7 +12,7 @@ import type { Currency } from '../value-objects/money.js';
 
 /**
  * Port: source of intercompany transactions (same tenant, counterparty_entity_id set).
- * Implemented by infrastructure (e.g. IAccountRepository / IJournalEntryRepository).
+ * Implemented by infrastructure (e.g. IJournalEntryRepository).
  */
 export interface IIntercompanyTransactionSource {
   findIntercompanyTransactions(

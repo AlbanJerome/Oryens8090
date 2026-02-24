@@ -1,16 +1,12 @@
 import { JournalEntry, Account } from '../../domain/index.js';
 import type { Entity } from '../../domain/entities/entity.js';
+import type { Money } from '../../domain/value-objects/money.js';
+import type { Currency } from '../../domain/value-objects/money.js';
 
 export interface IJournalEntryRepository {
   save(entry: JournalEntry): Promise<void>;
   findById(id: string): Promise<JournalEntry | null>;
   findByIdempotencyKey(tenantId: string, idempotencyKey: string): Promise<JournalEntry | null>;
-}
-
-export interface IAccountRepository {
-  findById(tenantId: string, accountId: string): Promise<Account | null>;
-  findByCode(tenantId: string, accountCode: string): Promise<Account | null>;
-  findByCodes(tenantId: string, accountCodes: string[]): Promise<Account[]>;
   /**
    * WO-GL-006: Intercompany transactions (counterparty_entity_id within same tenant).
    * Returns journal entries where isIntercompany === true for the given tenant and date range.
@@ -22,7 +18,14 @@ export interface IAccountRepository {
   ): Promise<JournalEntry[]>;
 }
 
-export interface AccountingPeriod {
+export interface IAccountRepository {
+  findById(tenantId: string, accountId: string): Promise<Account | null>;
+  findByCode(tenantId: string, accountCode: string): Promise<Account | null>;
+  findByCodes(tenantId: string, accountCodes: string[]): Promise<Account[]>;
+}
+
+/** Snapshot shape returned by IPeriodRepository (avoids shadowing domain AccountingPeriod entity). */
+export interface PeriodSnapshot {
   id: string;
   tenantId: string;
   name: string;
@@ -34,7 +37,7 @@ export interface AccountingPeriod {
 export interface IPeriodRepository {
   canPostToDate(tenantId: string, date: Date): Promise<{
     allowed: boolean;
-    period: AccountingPeriod | null;
+    period: PeriodSnapshot | null;
     reason?: string;
   }>;
 }
@@ -71,4 +74,12 @@ export interface ITrialBalanceRepository {
 export interface IEntityRepository {
   findById(tenantId: string, entityId: string): Promise<Entity | null>;
   findSubsidiaries(tenantId: string, parentEntityId: string): Promise<Entity[]>;
+}
+
+/**
+ * Converts amounts between currencies at a given date.
+ * Throws if no conversion rate is available (caller must handle).
+ */
+export interface ICurrencyConverter {
+  convert(amount: Money, toCurrency: Currency, asOfDate: Date): Promise<Money>;
 }

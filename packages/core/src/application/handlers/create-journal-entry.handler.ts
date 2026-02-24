@@ -14,8 +14,7 @@ import {
 import {
   JournalEntryError,
   UnbalancedEntryError,
-  AccountNotFoundError,
-  PeriodClosedError
+  AccountNotFoundError
 } from '../errors/journal-entry.errors.js';
 
 import {
@@ -27,6 +26,7 @@ import {
 } from '../repositories/interfaces.js';
 
 import { IdempotencyService } from '../services/idempotency.service.js';
+import { JournalEntryService } from '../services/JournalEntryService.js';
 
 export interface CreateJournalEntryResult {
   journalEntryId: string;
@@ -43,7 +43,8 @@ export class CreateJournalEntryCommandHandler {
     private periodRepository: IPeriodRepository,
     private temporalBalanceService: TemporalBalanceService,
     private eventBus: IDomainEventBus,
-    private idempotencyService: IdempotencyService
+    private idempotencyService: IdempotencyService,
+    private journalEntryService: JournalEntryService
   ) {}
 
   async handle(command: CreateJournalEntryCommand): Promise<CreateJournalEntryResult> {
@@ -143,14 +144,8 @@ export class CreateJournalEntryCommandHandler {
       throw new AccountNotFoundError(missingCodes[0], command.tenantId);
     }
 
-    // Validate period
-    const periodCheck = await this.periodRepository.canPostToDate(command.tenantId, command.postingDate);
-    if (!periodCheck.allowed) {
-      if (periodCheck.period) {
-        throw new PeriodClosedError(periodCheck.period.name, periodCheck.period.status);
-      }
-      throw new JournalEntryError('No accounting period found for posting date', 'NO_PERIOD_FOUND');
-    }
+    // Validate period (JournalEntryService checks if period is CLOSED)
+    await this.journalEntryService.assertCanPost(command.tenantId, command.postingDate);
   }
 
   private async createJournalEntry(command: CreateJournalEntryCommand): Promise<JournalEntry> {

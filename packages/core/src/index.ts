@@ -13,6 +13,7 @@ export {
   JournalEntry,
   Account,
   Entity,
+  AccountingPeriod,
   TemporalBalanceService,
   BalanceService,
   ConsolidationService,

@@ -44,3 +44,13 @@ export class DuplicateEntryError extends JournalEntryError {
     );
   }
 }
+
+export class ConversionRateUnavailableError extends JournalEntryError {
+  constructor(fromCurrency: string, toCurrency: string, asOfDate: Date) {
+    super(
+      `No conversion rate available from ${fromCurrency} to ${toCurrency} as of ${asOfDate.toISOString().slice(0, 10)}`,
+      'CONVERSION_RATE_UNAVAILABLE',
+      { fromCurrency, toCurrency, asOfDate: asOfDate.toISOString() }
+    );
+  }
+}

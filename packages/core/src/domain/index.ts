@@ -39,6 +39,12 @@ export {
   ConsolidationMethod
 } from './entities/entity.js';
 
+export {
+  AccountingPeriod,
+  AccountingPeriodProps,
+  PeriodStatus
+} from './entities/accounting-period.js';
+
 // Services
 export { 
   TemporalBalanceService, 

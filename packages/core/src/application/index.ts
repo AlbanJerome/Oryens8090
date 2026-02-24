@@ -18,17 +18,25 @@ export {
   IIdempotencyRepository
 } from './services/idempotency.service.js';
 
+export { JournalEntryService } from './services/JournalEntryService.js';
+
+export {
+  ClosingService,
+  ClosingEntryResult
+} from './services/ClosingService.js';
+
 // Interfaces
 export {
   IJournalEntryRepository,
   IAccountRepository,
   IPeriodRepository,
-  AccountingPeriod,
+  PeriodSnapshot,
   IDomainEventBus,
   DomainEvent,
   TrialBalanceAccount,
   ITrialBalanceRepository,
-  IEntityRepository
+  IEntityRepository,
+  ICurrencyConverter
 } from './repositories/interfaces.js';
 
 // Queries (WO-GL-005)
@@ -43,5 +51,6 @@ export {
   UnbalancedEntryError,
   AccountNotFoundError,
   PeriodClosedError,
-  DuplicateEntryError
+  DuplicateEntryError,
+  ConversionRateUnavailableError
 } from './errors/journal-entry.errors.js';
