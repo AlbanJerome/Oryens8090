@@ -29,6 +29,19 @@ const DDL_STATEMENTS: string[] = [
   `CREATE INDEX IF NOT EXISTS idx_accounts_tenant ON accounts(tenant_id);`,
   `CREATE INDEX IF NOT EXISTS idx_accounts_deleted_at ON accounts(deleted_at) WHERE deleted_at IS NULL;`,
 
+  `-- Idempotency table before journal_entries (no FKs reference it; created first per requirement)
+  CREATE TABLE IF NOT EXISTS idempotency_records (
+    id UUID PRIMARY KEY,
+    tenant_id UUID NOT NULL,
+    idempotency_key VARCHAR(255) NOT NULL,
+    command_type VARCHAR(64) NOT NULL,
+    result JSONB NOT NULL,
+    executed_at TIMESTAMPTZ NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    UNIQUE(tenant_id, idempotency_key)
+  );`,
+  `CREATE INDEX IF NOT EXISTS idx_idempotency_tenant_key ON idempotency_records(tenant_id, idempotency_key);`,
+
   `CREATE TABLE IF NOT EXISTS journal_entries (
     id UUID PRIMARY KEY,
     tenant_id UUID NOT NULL,
@@ -46,7 +59,7 @@ const DDL_STATEMENTS: string[] = [
     created_by UUID,
     approved_by UUID,
     approved_at TIMESTAMPTZ,
-    idempotency_key VARCHAR(255),
+    idempotency_key TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
   );`,
   `CREATE INDEX IF NOT EXISTS idx_journal_entries_tenant_entity ON journal_entries(tenant_id, entity_id);`,
@@ -94,18 +107,6 @@ const DDL_STATEMENTS: string[] = [
     UNIQUE(tenant_id, name)
   );`,
   `CREATE INDEX IF NOT EXISTS idx_accounting_periods_tenant ON accounting_periods(tenant_id);`,
-
-  `CREATE TABLE IF NOT EXISTS idempotency_records (
-    id UUID PRIMARY KEY,
-    tenant_id UUID NOT NULL,
-    idempotency_key VARCHAR(255) NOT NULL,
-    command_type VARCHAR(64) NOT NULL,
-    result JSONB NOT NULL,
-    executed_at TIMESTAMPTZ NOT NULL,
-    expires_at TIMESTAMPTZ NOT NULL,
-    UNIQUE(tenant_id, idempotency_key)
-  );`,
-  `CREATE INDEX IF NOT EXISTS idx_idempotency_tenant_key ON idempotency_records(tenant_id, idempotency_key);`,
 
   `CREATE TABLE IF NOT EXISTS entities (
     id UUID PRIMARY KEY,
