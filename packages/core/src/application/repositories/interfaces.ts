@@ -7,6 +7,7 @@ export interface IJournalEntryRepository {
 }
 
 export interface IAccountRepository {
+  findById(tenantId: string, accountId: string): Promise<Account | null>;
   findByCode(tenantId: string, accountCode: string): Promise<Account | null>;
   findByCodes(tenantId: string, accountCodes: string[]): Promise<Account[]>;
 }
