@@ -4,12 +4,12 @@
  * Data: Post JE to subsidiary (Debit Cash $1000, Credit Equity $1000).
  * Verification: Total Assets = $1000, NCI = $200 (20% of subsidiary equity).
  *
- * Run: DATABASE_URL=postgres://... npx tsx scripts/verify-consolidation.ts
- * Prerequisite: Schema applied (npx tsx scripts/setup-db.ts "$DATABASE_URL")
+ * Run: DATABASE_URL=postgres://... npx tsx tests/integration/verify-consolidation.ts
  */
 
 import type { Client } from 'pg';
-import type { TrialBalanceAccount } from '../packages/core/src/application/repositories/interfaces.js';
+// Corrected path: Up two levels to reach project root
+import type { TrialBalanceAccount } from '../../packages/core/src/application/repositories/interfaces.js';
 
 async function main(): Promise<void> {
   const dbUrl = process.env.DATABASE_URL;
@@ -40,11 +40,13 @@ async function main(): Promise<void> {
     // --- Execution: Run GetConsolidatedBalanceSheetQueryHandler ---
     const entityRepo = await createEntityRepository(client);
     const trialBalanceRepo = createTrialBalanceRepo(client);
+    
+    // Corrected paths for core application logic
     const { GetConsolidatedBalanceSheetQueryHandler } = await import(
-      '../packages/core/src/application/index.js'
+      '../../packages/core/src/application/index.js'
     );
     const { ConsolidationService } = await import(
-      '../packages/core/src/domain/services/ConsolidationService.js'
+      '../../packages/core/src/domain/services/ConsolidationService.js'
     );
 
     const handler = new GetConsolidatedBalanceSheetQueryHandler(
@@ -80,6 +82,7 @@ async function main(): Promise<void> {
     }
 
     console.log('SUCCESS: Consolidation Math Verified');
+    console.log(`  isBalanced: ${result.isBalanced}`);
     console.log('  Total Assets = $1000 (Full consolidation).');
     console.log('  Non-Controlling Interest (NCI) = $200 (20% of subsidiary equity).');
   } finally {
@@ -92,23 +95,20 @@ async function seedAccounts(
   tenantId: string,
   systemUserId: string
 ): Promise<void> {
-  const cashId = crypto.randomUUID();
-  const equityId = crypto.randomUUID();
   await client.query(
     `INSERT INTO accounts (id, tenant_id, code, name, account_type, normal_balance, created_by)
      VALUES ($1, $2, '1000-CASH', 'Cash', 'Asset', 'Debit', $3), ($4, $2, '3000-EQUITY', 'Equity', 'Equity', 'Credit', $3)
      ON CONFLICT (tenant_id, code) DO NOTHING`,
-    [cashId, tenantId, systemUserId, equityId]
+    [crypto.randomUUID(), tenantId, systemUserId, crypto.randomUUID()]
   );
 }
 
 async function seedPeriod(client: Client, tenantId: string): Promise<void> {
-  const periodId = crypto.randomUUID();
   await client.query(
     `INSERT INTO accounting_periods (id, tenant_id, name, start_date, end_date, status)
      VALUES ($1, $2, '2024-06', '2024-06-01', '2024-06-30', 'OPEN')
      ON CONFLICT (tenant_id, name) DO NOTHING`,
-    [periodId, tenantId]
+    [crypto.randomUUID(), tenantId]
   );
 }
 
@@ -133,13 +133,14 @@ async function postSubsidiaryJournalEntry(
   entityId: string,
   systemUserId: string
 ): Promise<void> {
+  // Corrected paths for imports
   const {
     CreateJournalEntryCommandHandler,
     JournalEntryService,
     IdempotencyService,
     AuditLoggerService
-  } = await import('../packages/core/src/application/index.js');
-  const { TemporalBalanceService } = await import('../packages/core/src/domain/index.js');
+  } = await import('../../packages/core/src/application/index.js');
+  const { TemporalBalanceService } = await import('../../packages/core/src/domain/index.js');
 
   const journalEntryRepo = createJournalEntryRepo(client);
   const auditLogRepo = createAuditLogRepo(client);
@@ -147,9 +148,7 @@ async function postSubsidiaryJournalEntry(
   const periodRepo = createPeriodRepo(tenantId);
   const idempotencyRepo = { findByKey: async () => null, save: async () => {} };
   const eventBus = { publish: async () => {} };
-  const temporalBalanceService = { applyJournalEntry: async () => {} } as unknown as InstanceType<
-    typeof TemporalBalanceService
-  >;
+  const temporalBalanceService = { applyJournalEntry: async () => {} } as unknown as any;
   const journalEntryService = new JournalEntryService(periodRepo);
   const auditLogger = new AuditLoggerService(auditLogRepo);
 
@@ -183,36 +182,17 @@ async function postSubsidiaryJournalEntry(
 
 function createJournalEntryRepo(client: Client) {
   return {
-    save: async (entry: import('../packages/core/src/domain/entities/journal-entry.js').JournalEntry) => {
+    save: async (entry: any) => {
       await client.query(
         `INSERT INTO journal_entries (id, tenant_id, entity_id, posting_date, source_module, source_document_id, source_document_type, description, is_intercompany, valid_time_start, version)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-        [
-          entry.id,
-          entry.tenantId,
-          entry.entityId,
-          entry.postingDate,
-          entry.sourceModule,
-          entry.sourceDocumentId,
-          entry.sourceDocumentType,
-          entry.description,
-          entry.isIntercompany,
-          entry.validTimeStart,
-          entry.version
-        ]
+        [entry.id, entry.tenantId, entry.entityId, entry.postingDate, entry.sourceModule, entry.sourceDocumentId, entry.sourceDocumentType, entry.description, entry.isIntercompany, entry.validTimeStart, entry.version]
       );
       for (const line of entry.lines) {
         await client.query(
           `INSERT INTO journal_entry_lines (id, entry_id, account_code, debit_amount_cents, credit_amount_cents, description)
            VALUES ($1, $2, $3, $4, $5, $6)`,
-          [
-            line.id,
-            line.entryId,
-            line.accountCode,
-            line.debitAmount.toCents(),
-            line.creditAmount.toCents(),
-            line.description ?? null
-          ]
+          [line.id, line.entryId, line.accountCode, line.debitAmount.toCents(), line.creditAmount.toCents(), line.description ?? null]
         );
       }
     },
@@ -225,18 +205,11 @@ function createJournalEntryRepo(client: Client) {
 
 function createAuditLogRepo(client: Client) {
   return {
-    append: async (entry: import('../packages/core/src/application/services/audit-logger.service.js').AuditLogEntry) => {
+    append: async (entry: any) => {
       await client.query(
         `INSERT INTO audit_log (tenant_id, user_id, action, entity_type, entity_id, payload)
          VALUES ($1, $2, $3, $4, $5, $6::jsonb)`,
-        [
-          entry.tenantId,
-          entry.userId ?? null,
-          entry.action,
-          entry.entityType ?? null,
-          entry.entityId ?? null,
-          JSON.stringify(entry.payload)
-        ]
+        [entry.tenantId, entry.userId ?? null, entry.action, entry.entityType ?? null, entry.entityId ?? null, JSON.stringify(entry.payload)]
       );
     }
   };
@@ -244,8 +217,8 @@ function createAuditLogRepo(client: Client) {
 
 function createAccountRepo(tenantId: string, systemUserId: string) {
   const accounts = [
-    { tenantId, code: '1000-CASH', name: 'Cash', accountType: 'Asset' as const, normalBalance: 'Debit' as const, createdBy: systemUserId, isSystemControlled: false, allowsIntercompany: false, externalMapping: {} },
-    { tenantId, code: '3000-EQUITY', name: 'Equity', accountType: 'Equity' as const, normalBalance: 'Credit' as const, createdBy: systemUserId, isSystemControlled: false, allowsIntercompany: false, externalMapping: {} }
+    { tenantId, code: '1000-CASH', name: 'Cash', accountType: 'Asset' as const, normalBalance: 'Debit' as const, createdBy: systemUserId },
+    { tenantId, code: '3000-EQUITY', name: 'Equity', accountType: 'Equity' as const, normalBalance: 'Credit' as const, createdBy: systemUserId }
   ];
   return {
     findById: async () => null,
@@ -256,40 +229,20 @@ function createAccountRepo(tenantId: string, systemUserId: string) {
 }
 
 function createPeriodRepo(tenantId: string) {
-  const periodId = crypto.randomUUID();
   return {
     canPostToDate: async () => ({
       allowed: true,
-      period: {
-        id: periodId,
-        tenantId,
-        name: '2024-06',
-        startDate: new Date('2024-06-01'),
-        endDate: new Date('2024-06-30'),
-        status: 'OPEN'
-      }
+      period: { id: crypto.randomUUID(), tenantId, name: '2024-06', startDate: new Date('2024-06-01'), endDate: new Date('2024-06-30'), status: 'OPEN' }
     })
   };
 }
 
-/**
- * Trial balance from journal_entry_lines + journal_entries: balance per account as of asOfDate.
- * balanceCents: positive = debit balance, negative = credit balance.
- */
 function createTrialBalanceRepo(client: Client) {
   return {
-    getTrialBalance: async (
-      tenantId: string,
-      entityId: string,
-      asOfDate: Date
-    ): Promise<TrialBalanceAccount[]> => {
+    getTrialBalance: async (tenantId: string, entityId: string, asOfDate: Date): Promise<TrialBalanceAccount[]> => {
       const dateStr = asOfDate.toISOString().slice(0, 10);
       const res = await client.query(
-        `SELECT jel.account_code,
-                a.name AS account_name,
-                SUM(jel.debit_amount_cents - jel.credit_amount_cents) AS balance_cents,
-                'USD' AS currency,
-                a.account_type AS account_type
+        `SELECT jel.account_code, a.name AS account_name, SUM(jel.debit_amount_cents - jel.credit_amount_cents) AS balance_cents, 'USD' AS currency, a.account_type AS account_type
          FROM journal_entry_lines jel
          JOIN journal_entries je ON je.id = jel.entry_id
          LEFT JOIN accounts a ON a.tenant_id = je.tenant_id AND a.code = jel.account_code
@@ -297,7 +250,7 @@ function createTrialBalanceRepo(client: Client) {
          GROUP BY jel.account_code, a.name, a.account_type`,
         [tenantId, entityId, dateStr]
       );
-      return res.rows.map((r: { account_code: string; account_name: string | null; balance_cents: string; currency: string; account_type: string | null }) => ({
+      return res.rows.map((r: any) => ({
         accountCode: r.account_code,
         accountName: r.account_name ?? undefined,
         balanceCents: Number(r.balance_cents),
@@ -309,8 +262,9 @@ function createTrialBalanceRepo(client: Client) {
 }
 
 async function createEntityRepository(client: Client) {
-  const { EntityRepositoryPostgres } = await import('../packages/core/src/infrastructure/index.js');
-  return new EntityRepositoryPostgres(client as import('../packages/core/src/infrastructure/repositories/EntityRepository.postgres.js').PgClient);
+  // Corrected path for infrastructure
+  const { EntityRepositoryPostgres } = await import('../../packages/core/src/infrastructure/index.js');
+  return new EntityRepositoryPostgres(client as any);
 }
 
 main().catch((e) => {
