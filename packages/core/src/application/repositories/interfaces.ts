@@ -85,6 +85,8 @@ export interface TrialBalanceAccount {
   /** Signed balance in smallest unit (cents): positive = debit balance, negative = credit. */
   balanceCents: number;
   currency: string;
+  /** Account type for NCI (Full consolidation: NCI = non-controlling share × Net Equity). */
+  accountType?: string;
 }
 
 export interface ITrialBalanceRepository {

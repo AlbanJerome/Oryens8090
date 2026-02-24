@@ -48,43 +48,17 @@ function balanceToMoney(acc: TrialBalanceAccount): Money {
 }
 
 /**
- * Multiply by ownership percentage without losing precision:
- * convert to cents, multiply by ownershipPercentage / 100, then round.
+ * Compute subsidiary Net Equity (sum of Equity-type account balances).
+ * Equity accounts have credit normal balance, so balanceCents is negative; net equity is -balanceCents.
  */
-function multiplyByOwnershipPercentage(
-  money: Money,
-  ownershipPercentage: number
-): Money {
-  const cents = money.toCents();
-  const scaledCents = Math.round((cents * ownershipPercentage) / 100);
-  const currency = money.currency;
-  if (scaledCents >= 0) {
-    return Money.fromCents(scaledCents, currency);
-  }
-  return Money.fromCents(Math.abs(scaledCents), currency).negate();
-}
-
-/**
- * Calculate Non-Controlling Interest per account using Map for account lookups.
- * NCI = (1 - ownershipPercentage/100) × subsidiary balance for each account.
- * Returns Map<accountCode, nciCents> for O(1) lookup when building result lines.
- */
-function calculateNci(
-  subsidiaryAccountMap: Map<string, TrialBalanceAccount>,
-  ownershipPercentage: number
-): Map<string, number> {
-  const nciByAccount = new Map<string, number>();
-  const nciFraction =
-    (100 - Math.max(0, Math.min(100, ownershipPercentage))) / 100;
-
-  for (const [accountCode, acc] of subsidiaryAccountMap) {
-    const balanceCents = acc.balanceCents;
-    const nciCents = Math.round(balanceCents * nciFraction);
-    if (nciCents !== 0) {
-      nciByAccount.set(accountCode, nciCents);
+function subsidiaryNetEquityCents(accountMap: Map<string, TrialBalanceAccount>): number {
+  let netEquityCents = 0;
+  for (const acc of accountMap.values()) {
+    if (acc.accountType === 'Equity') {
+      netEquityCents += -acc.balanceCents;
     }
   }
-  return nciByAccount;
+  return netEquityCents;
 }
 
 export class GetConsolidatedBalanceSheetQueryHandler {
@@ -129,8 +103,9 @@ export class GetConsolidatedBalanceSheetQueryHandler {
     const subsidiaryData: {
       entity: Entity;
       accountMap: Map<string, TrialBalanceAccount>;
-      nciMap: Map<string, number>;
     }[] = [];
+
+    let totalNciCents = 0;
 
     for (const sub of subsidiaryEntities) {
       const tb = await this.trialBalanceRepository.getTrialBalance(
@@ -141,16 +116,16 @@ export class GetConsolidatedBalanceSheetQueryHandler {
       const accountMap = toAccountMap(tb);
       for (const code of accountMap.keys()) allAccountCodes.add(code);
 
-      const nciMap =
-        sub.consolidationMethod === 'Full'
-          ? calculateNci(accountMap, sub.ownershipPercentage)
-          : new Map<string, number>();
+      if (sub.consolidationMethod === 'Full') {
+        const netEquityCents = subsidiaryNetEquityCents(accountMap);
+        const nciShare = sub.getNonControllingInterestShare();
+        totalNciCents += Math.round(nciShare * netEquityCents);
+      }
 
-      subsidiaryData.push({ entity: sub, accountMap, nciMap });
+      subsidiaryData.push({ entity: sub, accountMap });
     }
 
     const lines: ConsolidatedBalanceSheetLineDto[] = [];
-    let totalNciCents = 0;
 
     for (const accountCode of allAccountCodes) {
       const parentAcc = parentMap.get(accountCode);
@@ -158,9 +133,8 @@ export class GetConsolidatedBalanceSheetQueryHandler {
         parentAcc != null ? balanceToMoney(parentAcc) : Money.zero(currency);
 
       let consolidatedMoney = parentMoney;
-      let lineNciCents = 0;
 
-      for (const { entity: subEntity, accountMap, nciMap } of subsidiaryData) {
+      for (const { entity: subEntity, accountMap } of subsidiaryData) {
         const subAcc = accountMap.get(accountCode);
         if (!subAcc) continue;
 
@@ -173,9 +147,6 @@ export class GetConsolidatedBalanceSheetQueryHandler {
             subEntity
           );
           consolidatedMoney = result.consolidated;
-          const nciCents = nciMap.get(accountCode) ?? 0;
-          lineNciCents += nciCents;
-          totalNciCents += nciCents;
         } else if (subEntity.consolidationMethod === 'Proportional') {
           consolidatedMoney =
             this.consolidationService.consolidateProportional(
@@ -193,13 +164,12 @@ export class GetConsolidatedBalanceSheetQueryHandler {
       }
 
       const amountCents = consolidatedMoney.toCents();
-      if (amountCents !== 0 || lineNciCents !== 0) {
+      if (amountCents !== 0) {
         lines.push({
           accountCode,
           accountName: parentAcc?.accountName,
           amountCents,
-          currency,
-          ...(lineNciCents !== 0 ? { nciCents: lineNciCents } : {})
+          currency
         });
       }
     }
@@ -210,7 +180,7 @@ export class GetConsolidatedBalanceSheetQueryHandler {
       currency,
       consolidationMethod: parent.consolidationMethod,
       lines,
-      ...(totalNciCents !== 0 ? { totalNciCents } : {})
+      totalNciCents
     };
   }
 }
