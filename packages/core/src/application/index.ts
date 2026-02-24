@@ -5,11 +5,18 @@ export {
   CreateJournalEntryCommandValidator
 } from './commands/create-journal-entry.command.js';
 
+export { type ClosePeriodCommand } from './commands/close-period.command.js';
+
 // Handlers
 export {
   CreateJournalEntryCommandHandler,
   CreateJournalEntryResult
 } from './handlers/create-journal-entry.handler.js';
+
+export {
+  ClosePeriodCommandHandler,
+  type ClosePeriodResult
+} from './handlers/close-period.handler.js';
 
 // Services
 export {
@@ -31,6 +38,13 @@ export {
   isCurrentAccount,
   type AccountBalanceWithType
 } from './services/FinancialStatementService.js';
+
+export {
+  AuditLoggerService,
+  type IAuditLogger,
+  type IAuditLoggerRepository,
+  type AuditLogEntry
+} from './services/audit-logger.service.js';
 
 // Interfaces
 export {
