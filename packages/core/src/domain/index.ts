@@ -55,3 +55,8 @@ export {
   ConsolidationService,
   FullConsolidationResult
 } from './services/ConsolidationService.js';
+
+export {
+  EliminationService,
+  IIntercompanyTransactionSource
+} from './services/EliminationService.js';
