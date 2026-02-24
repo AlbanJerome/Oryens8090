@@ -152,8 +152,9 @@ export class CreateJournalEntryCommandHandler {
   }
 
   private async createJournalEntry(command: CreateJournalEntryCommand): Promise<JournalEntry> {
+    const entryId = crypto.randomUUID();
     const lines = command.lines.map(cmdLine => new JournalEntryLine({
-      entryId: '',
+      entryId,
       accountCode: cmdLine.accountCode,
       debitAmount: Money.fromCents(cmdLine.debitAmountCents, command.currency),
       creditAmount: Money.fromCents(cmdLine.creditAmountCents, command.currency),
@@ -162,6 +163,7 @@ export class CreateJournalEntryCommandHandler {
     }));
 
     return JournalEntry.create({
+      id: entryId,
       tenantId: command.tenantId,
       entityId: command.entityId,
       postingDate: command.postingDate,
