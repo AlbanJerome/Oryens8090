@@ -1,4 +1,5 @@
 import { JournalEntry, Account } from '../../domain/index.js';
+import type { Entity } from '../../domain/entities/entity.js';
 
 export interface IJournalEntryRepository {
   save(entry: JournalEntry): Promise<void>;
@@ -39,4 +40,26 @@ export interface DomainEvent {
 
 export interface IDomainEventBus {
   publish(event: DomainEvent): Promise<void>;
+}
+
+/** WO-GL-005: Single account line for trial balance / balance sheet (per entity). */
+export interface TrialBalanceAccount {
+  accountCode: string;
+  accountName?: string;
+  /** Signed balance in smallest unit (cents): positive = debit balance, negative = credit. */
+  balanceCents: number;
+  currency: string;
+}
+
+export interface ITrialBalanceRepository {
+  getTrialBalance(
+    tenantId: string,
+    entityId: string,
+    asOfDate: Date
+  ): Promise<TrialBalanceAccount[]>;
+}
+
+export interface IEntityRepository {
+  findById(tenantId: string, entityId: string): Promise<Entity | null>;
+  findSubsidiaries(tenantId: string, parentEntityId: string): Promise<Entity[]>;
 }

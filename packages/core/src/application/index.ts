@@ -25,8 +25,17 @@ export {
   IPeriodRepository,
   AccountingPeriod,
   IDomainEventBus,
-  DomainEvent
+  DomainEvent,
+  TrialBalanceAccount,
+  ITrialBalanceRepository,
+  IEntityRepository
 } from './repositories/interfaces.js';
+
+// Queries (WO-GL-005)
+export {
+  GetConsolidatedBalanceSheetQueryHandler,
+  GetConsolidatedBalanceSheetQuery
+} from './queries/get-consolidated-balance-sheet.query.js';
 
 // Errors
 export {
