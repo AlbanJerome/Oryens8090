@@ -16,3 +16,9 @@ export {
 } from './dto/consolidation.dto.js';
 
 export { AccountController } from './controllers/AccountController.js';
+
+export {
+  TrialBalanceController,
+  type TrialBalanceQuery,
+  type TrialBalanceReportDto
+} from './controllers/TrialBalanceController.js';

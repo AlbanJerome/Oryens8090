@@ -15,6 +15,7 @@ export class UnbalancedEntryError extends JournalEntryError {
   }
 }
 
+
 export class AccountNotFoundError extends JournalEntryError {
   constructor(accountCode: string, tenantId: string) {
     super(

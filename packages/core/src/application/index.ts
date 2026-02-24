@@ -34,6 +34,7 @@ export {
   IDomainEventBus,
   DomainEvent,
   TrialBalanceAccount,
+  TrialBalanceDataLine,
   ITrialBalanceRepository,
   IEntityRepository,
   ICurrencyConverter

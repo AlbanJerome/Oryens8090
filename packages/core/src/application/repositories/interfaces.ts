@@ -16,6 +16,30 @@ export interface IJournalEntryRepository {
     fromDate: Date,
     toDate: Date
   ): Promise<JournalEntry[]>;
+  /**
+   * WO-GL-012: Trial balance data per account (opening = before period, movement = within period).
+   */
+  getTrialBalanceData(
+    tenantId: string,
+    entityId: string,
+    periodStart: Date,
+    periodEnd: Date
+  ): Promise<TrialBalanceDataLine[]>;
+}
+
+/** WO-GL-012: Per-account trial balance data from journal entries (opening + period movement). */
+export interface TrialBalanceDataLine {
+  accountCode: string;
+  accountName?: string;
+  currency: string;
+  /** Sum of debits for this account before periodStart. */
+  openingDebitCents: number;
+  /** Sum of credits for this account before periodStart. */
+  openingCreditCents: number;
+  /** Sum of debits for this account within [periodStart, periodEnd]. */
+  periodDebitCents: number;
+  /** Sum of credits for this account within [periodStart, periodEnd]. */
+  periodCreditCents: number;
 }
 
 export interface IAccountRepository {

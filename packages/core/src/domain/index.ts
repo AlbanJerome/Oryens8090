@@ -66,3 +66,11 @@ export {
   EliminationService,
   IIntercompanyTransactionSource
 } from './services/EliminationService.js';
+
+export {
+  TrialBalanceService,
+  UnbalancedLedgerError,
+  type TrialBalanceDataLine,
+  type TrialBalanceReport,
+  type TrialBalanceReportLine
+} from './services/TrialBalanceService.js';
