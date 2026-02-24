@@ -1,3 +1,8 @@
+node_modules/
+dist/
+.next/
+.env*
+
 # Dependencies
 node_modules/
 
