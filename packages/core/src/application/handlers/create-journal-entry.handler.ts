@@ -112,7 +112,12 @@ export class CreateJournalEntryCommandHandler {
             postingDate: command.postingDate.toISOString(),
             totalAmountCents: result.totalAmountCents,
             affectedAccounts: result.affectedAccounts,
-            sourceModule: command.sourceModule
+            sourceModule: command.sourceModule,
+            lines: journalEntry.lines.map((l) => ({
+              accountCode: l.accountCode,
+              debitAmountCents: l.debitAmount.toCents(),
+              creditAmountCents: l.creditAmount.toCents()
+            }))
           }
         });
       }
@@ -181,7 +186,11 @@ export class CreateJournalEntryCommandHandler {
       debitAmount: Money.fromCents(cmdLine.debitAmountCents, command.currency),
       creditAmount: Money.fromCents(cmdLine.creditAmountCents, command.currency),
       costCenter: cmdLine.costCenter,
-      description: cmdLine.description
+      description: cmdLine.description,
+      metadata: cmdLine.metadata,
+      transactionAmountCents: cmdLine.transactionAmountCents,
+      transactionCurrencyCode: cmdLine.transactionCurrencyCode,
+      exchangeRate: cmdLine.exchangeRate,
     }));
 
     return JournalEntry.create({
@@ -190,13 +199,14 @@ export class CreateJournalEntryCommandHandler {
       entityId: command.entityId,
       postingDate: command.postingDate,
       sourceModule: command.sourceModule,
-      sourceDocumentId: command.sourceDocumentId,
+      sourceDocumentId: command.sourceDocumentId?.trim() || crypto.randomUUID(),
       sourceDocumentType: command.sourceDocumentType,
       description: command.description,
       lines,
       isIntercompany: command.isIntercompany || false,
       counterpartyEntityId: command.counterpartyEntityId,
-      createdBy: command.createdBy
+      createdBy: command.createdBy,
+      metadata: command.metadata,
     });
   }
 

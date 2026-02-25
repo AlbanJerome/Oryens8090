@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .next/
+.next 2/
 .env*
 
 # Dependencies
@@ -9,6 +10,7 @@ node_modules/
 # Build & tooling
 dist/
 .vite/
+.turbo/
 *.tsbuildinfo
 
 # Test

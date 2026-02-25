@@ -26,7 +26,7 @@ async function main(): Promise<void> {
     const systemUserId = crypto.randomUUID();
     const parentEntityId = crypto.randomUUID();
     const subsidiaryEntityId = crypto.randomUUID();
-    const asOfDate = new Date('2024-06-15');
+    const asOfDate = new Date('2025-02-15');
 
     // --- Setup: Parent (100% ownership), Subsidiary (80%, Full) ---
     await seedAccounts(client, tenantId, systemUserId);
@@ -104,7 +104,7 @@ async function seedAccounts(
 async function seedPeriod(client: Client, tenantId: string): Promise<void> {
   await client.query(
     `INSERT INTO accounting_periods (id, tenant_id, name, start_date, end_date, status)
-     VALUES ($1, $2, '2024-06', '2024-06-01', '2024-06-30', 'OPEN')
+     VALUES ($1, $2, '2025-02', '2025-02-01', '2025-02-28', 'OPEN')
      ON CONFLICT (tenant_id, name) DO NOTHING`,
     [crypto.randomUUID(), tenantId]
   );
@@ -164,7 +164,7 @@ async function postSubsidiaryJournalEntry(
   await handler.handle({
     tenantId,
     entityId,
-    postingDate: new Date('2024-06-15'),
+    postingDate: new Date('2025-02-15'),
     sourceModule: 'VERIFY_CONSOLIDATION',
     sourceDocumentId: crypto.randomUUID(),
     sourceDocumentType: 'VERIFY',
@@ -230,7 +230,7 @@ function createPeriodRepo(tenantId: string) {
   return {
     canPostToDate: async () => ({
       allowed: true,
-      period: { id: crypto.randomUUID(), tenantId, name: '2024-06', startDate: new Date('2024-06-01'), endDate: new Date('2024-06-30'), status: 'OPEN' }
+      period: { id: crypto.randomUUID(), tenantId, name: '2025-02', startDate: new Date('2025-02-01'), endDate: new Date('2025-02-28'), status: 'OPEN' }
     })
   };
 }

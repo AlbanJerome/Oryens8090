@@ -6,6 +6,7 @@
  */
 import { Money, type Currency } from '../../domain/value-objects/money';
 import { Entity } from '../../domain/entities/entity';
+import { isAsset, isLiability, isEquity } from '../../domain/entities/account';
 import { ConsolidationService } from '../../domain/services/ConsolidationService';
 import type {
   TrialBalanceAccount,
@@ -190,11 +191,16 @@ export class GetConsolidatedBalanceSheetQueryHandler {
         subsidiaryData
           .map((d) => d.accountMap.get(accountCode))
           .find((acc): acc is TrialBalanceAccount => acc != null)?.accountType;
+      const accountName =
+        parentAcc?.accountName ??
+        subsidiaryData
+          .map((d) => d.accountMap.get(accountCode))
+          .find((acc): acc is TrialBalanceAccount => acc != null)?.accountName;
 
       if (amountCents !== 0) {
         lines.push({
           accountCode,
-          accountName: parentAcc?.accountName,
+          accountName: accountName ?? accountCode,
           amountCents,
           currency,
           ...(accountType != null ? { accountType } : {}),
@@ -220,19 +226,21 @@ export class GetConsolidatedBalanceSheetQueryHandler {
     const allLinesHaveType = lines.every(
       (line) =>
         line.accountType != null &&
-        (line.accountType === 'Asset' ||
-          line.accountType === 'Liability' ||
-          line.accountType === 'Equity')
+        (isAsset(line.accountType) ||
+          isLiability(line.accountType) ||
+          isEquity(line.accountType))
     );
 
     if (allLinesHaveType) {
       for (const line of lines) {
-        const type = line.accountType as keyof typeof totalByType;
-        totalByType[type] += line.amountCents;
+        const type = line.accountType ?? '';
+        if (isAsset(type)) totalByType.Asset += line.amountCents;
+        else if (isLiability(type)) totalByType.Liability += line.amountCents;
+        else if (isEquity(type)) totalByType.Equity += line.amountCents;
       }
     }
 
-    // Assets = Liabilities + Equity (including NCI); NCI is in lines as Equity when hasFullSubsidiary
+    // Assets + Liabilities + Equity === 0 (signed: assets debit, liabilities/equity credit)
     const isBalanced =
       allLinesHaveType &&
       totalByType.Asset + totalByType.Liability + totalByType.Equity === 0;

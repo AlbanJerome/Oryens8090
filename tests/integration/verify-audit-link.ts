@@ -60,7 +60,7 @@ async function main(): Promise<void> {
     const command = {
       tenantId,
       entityId,
-      postingDate: new Date('2024-06-15'),
+      postingDate: new Date('2025-02-15'),
       sourceModule: 'VERIFY_AUDIT',
       sourceDocumentId: crypto.randomUUID(),
       sourceDocumentType: 'VERIFY',
@@ -215,9 +215,9 @@ function createPeriodRepo(tenantId: string) {
       period: {
         id: periodId,
         tenantId,
-        name: '2024-06',
-        startDate: new Date('2024-06-01'),
-        endDate: new Date('2024-06-30'),
+        name: '2025-02',
+        startDate: new Date('2025-02-01'),
+        endDate: new Date('2025-02-28'),
         status: 'OPEN'
       }
     })
@@ -235,7 +235,7 @@ async function seedMinimalData(client: import('pg').Client, tenantId: string, sy
   const periodId = crypto.randomUUID();
   await client.query(
     `INSERT INTO accounting_periods (id, tenant_id, name, start_date, end_date, status)
-     VALUES ($1, $2, '2024-06', '2024-06-01', '2024-06-30', 'OPEN')
+     VALUES ($1, $2, '2025-02', '2025-02-01', '2025-02-28', 'OPEN')
      ON CONFLICT (tenant_id, name) DO NOTHING`,
     [periodId, tenantId]
   );

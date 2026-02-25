@@ -1,10 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { NewJournalEntry } from './components/NewJournalEntry';
+import { AccountDrillDown } from './components/AccountDrillDown';
+import { DashboardAlerts } from './components/DashboardAlerts';
+import { LocaleProvider, useLocale } from './context/LocaleContext';
 
 type DiscoveryResponse = {
   tenantId: string;
   parentEntityId: string;
+  parentEntityName?: string;
 };
 
 type BalanceSheetLine = {
@@ -27,17 +34,6 @@ type BalanceSheetResponse = {
 
 type ReportingMode = 'consolidated' | 'entity';
 
-const USD_FORMAT = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-
-function formatCentsAsDollars(cents: number): string {
-  return USD_FORMAT.format(cents / 100);
-}
-
 function escapeCsvCell(value: string): string {
   if (/[",\n\r]/.test(value)) {
     return `"${value.replace(/"/g, '""')}"`;
@@ -45,12 +41,12 @@ function escapeCsvCell(value: string): string {
   return value;
 }
 
-function downloadBalanceSheetCsv(lines: BalanceSheetLine[]): void {
+function downloadBalanceSheetCsv(lines: BalanceSheetLine[], formatCurrency: (cents: number) => string): void {
   const header = ['Account Name', 'Code', 'Balance'];
   const rows = lines.map((line) => [
     line.accountName ?? '',
     line.accountCode,
-    formatCentsAsDollars(line.amountCents),
+    formatCurrency(line.amountCents),
   ]);
   const csvContent = [header.map(escapeCsvCell).join(','), ...rows.map((r) => r.map(escapeCsvCell).join(','))].join(
     '\r\n'
@@ -65,12 +61,31 @@ function downloadBalanceSheetCsv(lines: BalanceSheetLine[]): void {
 }
 
 export default function Home() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const tenantIdFromUrl = searchParams.get('tenantId');
+  const drillCode = searchParams.get('drill');
+  const drillName = searchParams.get('drillName');
   const [discovery, setDiscovery] = useState<DiscoveryResponse | null>(null);
   const [report, setReport] = useState<BalanceSheetResponse | null>(null);
   const [reportingMode, setReportingMode] = useState<ReportingMode>('consolidated');
   const [loading, setLoading] = useState(true);
   const [tableLoading, setTableLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [newEntryOpen, setNewEntryOpen] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [tableError, setTableError] = useState<string | null>(null);
+  const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [syncBanner, setSyncBanner] = useState<{ postingDate: string } | null>(null);
+  const [drillDown, setDrillDown] = useState<{ accountCode: string; accountName?: string } | null>(null);
+  const appliedDrillRef = useRef<string | null>(null);
+  const [dashboardTab, setDashboardTab] = useState<'balance-sheet' | 'alerts'>('balance-sheet');
+  const [monthsBack, setMonthsBack] = useState(0);
+  const [revalueResult, setRevalueResult] = useState<{ insight: string; totalUnrealizedGainLossCents: number } | null>(null);
+  const [revalueLoading, setRevalueLoading] = useState(false);
+  type LedgerException = { type: string; entryId: string; lineId?: string; accountCode?: string; reason: string; humanReadable: string };
+  const [ledgerHealth, setLedgerHealth] = useState<{ exceptions: LedgerException[]; closeReadinessScore: number } | null>(null);
+  const [ledgerHealthLoading, setLedgerHealthLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,7 +93,10 @@ export default function Home() {
     async function loadDiscovery() {
       try {
         setError(null);
-        const discoveryRes = await fetch('/api/discovery');
+        const discoveryUrl = tenantIdFromUrl
+          ? `/api/discovery?tenantId=${encodeURIComponent(tenantIdFromUrl)}`
+          : '/api/discovery';
+        const discoveryRes = await fetch(discoveryUrl);
         if (!discoveryRes.ok) {
           if (discoveryRes.status === 404) {
             setError('No root entity found. Run setup and seed data first.');
@@ -104,30 +122,56 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [tenantIdFromUrl]);
+
+  const asOfDate = useMemo(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - monthsBack);
+    return d.toISOString().slice(0, 10);
+  }, [monthsBack]);
+
+  useEffect(() => {
+    setDrillDown(null);
+    appliedDrillRef.current = null;
+  }, [tenantIdFromUrl]);
+
+  useEffect(() => {
+    if (!drillCode) {
+      appliedDrillRef.current = null;
+      return;
+    }
+    if (!discovery || appliedDrillRef.current === drillCode) return;
+    appliedDrillRef.current = drillCode;
+    setDrillDown({ accountCode: drillCode, accountName: drillName ?? undefined });
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('drill');
+    params.delete('drillName');
+    const q = params.toString();
+    router.replace(q ? `/?${q}` : '/', { scroll: false });
+  }, [drillCode, drillName, discovery, searchParams, router]);
 
   useEffect(() => {
     if (!discovery) return;
     const { tenantId, parentEntityId } = discovery;
     let cancelled = false;
     setTableLoading(true);
+    setTableError(null);
 
     async function loadReport() {
       try {
         const reportRes = await fetch(
-          `/api/tenants/${encodeURIComponent(tenantId)}/reports/balance-sheet?parentEntityId=${encodeURIComponent(parentEntityId)}&reportingMode=${reportingMode}`
+          `/api/tenants/${encodeURIComponent(tenantId)}/reports/balance-sheet?parentEntityId=${encodeURIComponent(parentEntityId)}&reportingMode=${reportingMode}&asOfDate=${encodeURIComponent(asOfDate)}`
         );
         if (!reportRes.ok) {
-          setError('Failed to load balance sheet.');
+          if (!cancelled) setTableError('Failed to load balance sheet.');
           return;
         }
         const reportData: BalanceSheetResponse = await reportRes.json();
         if (cancelled) return;
         setReport(reportData);
+        setTableError(null);
       } catch (e) {
-        if (!cancelled) {
-          setError(e instanceof Error ? e.message : 'Something went wrong.');
-        }
+        if (!cancelled) setTableError(e instanceof Error ? e.message : 'Something went wrong.');
       } finally {
         if (!cancelled) setTableLoading(false);
       }
@@ -137,7 +181,40 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [discovery, reportingMode]);
+  }, [discovery, reportingMode, refreshTrigger, asOfDate]);
+
+  useEffect(() => {
+    if (!discovery) return;
+    let cancelled = false;
+    setLedgerHealthLoading(true);
+    setLedgerHealth(null);
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/tenants/${encodeURIComponent(discovery.tenantId)}/ledger-health?parentEntityId=${encodeURIComponent(discovery.parentEntityId)}`
+        );
+        const data = await res.json().catch(() => ({ exceptions: [], closeReadinessScore: 100 }));
+        if (cancelled) return;
+        setLedgerHealth({
+          exceptions: Array.isArray(data.exceptions) ? data.exceptions : [],
+          closeReadinessScore: typeof data.closeReadinessScore === 'number' ? data.closeReadinessScore : 100,
+        });
+      } catch {
+        if (!cancelled) setLedgerHealth({ exceptions: [], closeReadinessScore: 100 });
+      } finally {
+        if (!cancelled) setLedgerHealthLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [discovery, refreshTrigger]);
+
+  useEffect(() => {
+    if (!successToast) return;
+    const t = setTimeout(() => setSuccessToast(null), 5000);
+    return () => clearTimeout(t);
+  }, [successToast]);
 
   if (loading) {
     return (
@@ -160,13 +237,207 @@ export default function Home() {
     );
   }
 
-  const isBalanced = report?.isBalanced ?? false;
-
   const hasLines = (report?.lines?.length ?? 0) > 0;
+  const isBalanced = report?.isBalanced ?? false;
+  const showUnbalanced = hasLines && report != null && !isBalanced;
+
+  const todayYmd = new Date().toISOString().slice(0, 10);
+  const syncBannerOutOfRange =
+    syncBanner &&
+    syncBanner.postingDate !== todayYmd;
+
+  return (
+    <LocaleProvider tenantId={discovery?.tenantId ?? undefined}>
+      <DashboardContent
+        discovery={discovery}
+        report={report}
+        reportingMode={reportingMode}
+        setReportingMode={setReportingMode}
+        dashboardTab={dashboardTab}
+        setDashboardTab={setDashboardTab}
+        monthsBack={monthsBack}
+        setMonthsBack={setMonthsBack}
+        asOfDate={asOfDate}
+        hasLines={hasLines ?? false}
+        isBalanced={isBalanced ?? false}
+        showUnbalanced={showUnbalanced ?? false}
+        tableLoading={tableLoading}
+        tableError={tableError}
+        setRefreshTrigger={setRefreshTrigger}
+        successToast={successToast}
+        syncBanner={syncBanner}
+        syncBannerOutOfRange={syncBannerOutOfRange ?? false}
+        todayYmd={todayYmd}
+        newEntryOpen={newEntryOpen}
+        setNewEntryOpen={setNewEntryOpen}
+        setSuccessToast={setSuccessToast}
+        setSyncBanner={setSyncBanner}
+        drillDown={drillDown}
+        setDrillDown={setDrillDown}
+        setReport={setReport}
+        revalueResult={revalueResult}
+        setRevalueResult={setRevalueResult}
+        revalueLoading={revalueLoading}
+        setRevalueLoading={setRevalueLoading}
+        ledgerHealth={ledgerHealth}
+        ledgerHealthLoading={ledgerHealthLoading}
+        setLedgerHealth={setLedgerHealth}
+      />
+    </LocaleProvider>
+  );
+}
+
+function DashboardContent({
+  discovery,
+  report,
+  reportingMode,
+  setReportingMode,
+  dashboardTab,
+  setDashboardTab,
+  monthsBack,
+  setMonthsBack,
+  asOfDate,
+  hasLines,
+  isBalanced,
+  showUnbalanced,
+  tableLoading,
+  tableError,
+  setRefreshTrigger,
+  successToast,
+  syncBanner,
+  syncBannerOutOfRange,
+  todayYmd,
+  newEntryOpen,
+  setNewEntryOpen,
+  setSuccessToast,
+  setSyncBanner,
+  drillDown,
+  setDrillDown,
+  setReport,
+  revalueResult,
+  setRevalueResult,
+  revalueLoading,
+  setRevalueLoading,
+  ledgerHealth,
+  ledgerHealthLoading,
+  setLedgerHealth,
+}: {
+  discovery: DiscoveryResponse | null;
+  report: BalanceSheetResponse | null;
+  reportingMode: ReportingMode;
+  setReportingMode: (m: ReportingMode) => void;
+  dashboardTab: 'balance-sheet' | 'alerts';
+  setDashboardTab: (t: 'balance-sheet' | 'alerts') => void;
+  monthsBack: number;
+  setMonthsBack: (n: number) => void;
+  asOfDate: string;
+  hasLines: boolean;
+  isBalanced: boolean;
+  showUnbalanced: boolean;
+  tableLoading: boolean;
+  tableError: string | null;
+  setRefreshTrigger: (fn: (t: number) => number) => void;
+  successToast: string | null;
+  syncBanner: { postingDate: string } | null;
+  syncBannerOutOfRange: boolean;
+  todayYmd: string;
+  newEntryOpen: boolean;
+  setNewEntryOpen: (o: boolean) => void;
+  setSuccessToast: (s: string | null) => void;
+  setSyncBanner: (s: { postingDate: string } | null) => void;
+  drillDown: { accountCode: string; accountName?: string } | null;
+  setDrillDown: (d: { accountCode: string; accountName?: string } | null) => void;
+  setReport: (r: BalanceSheetResponse | null) => void;
+  revalueResult: { insight: string; totalUnrealizedGainLossCents: number } | null;
+  setRevalueResult: (r: { insight: string; totalUnrealizedGainLossCents: number } | null) => void;
+  revalueLoading: boolean;
+  setRevalueLoading: (v: boolean) => void;
+  ledgerHealth: { exceptions: { type: string; entryId: string; lineId?: string; accountCode?: string; reason: string; humanReadable: string }[]; closeReadinessScore: number } | null;
+  ledgerHealthLoading: boolean;
+  setLedgerHealth: (h: { exceptions: { type: string; entryId: string; lineId?: string; accountCode?: string; reason: string; humanReadable: string }[]; closeReadinessScore: number } | null) => void;
+}) {
+  const { formatCurrency, formatDate, formatDateMedium } = useLocale();
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
+      {successToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed top-4 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-emerald-600 px-4 py-3 text-sm font-medium text-white shadow-lg"
+        >
+          {successToast}
+        </div>
+      )}
+      {syncBannerOutOfRange && (
+        <div className="mx-auto max-w-4xl px-4 pt-4 sm:px-6">
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            Entry saved! Note: This entry is dated {formatDate(syncBanner!.postingDate)}. Your
+            current view is as of {formatDate(todayYmd)}.{' '}
+            <button
+              type="button"
+              onClick={() => {
+                setRefreshTrigger((t) => t + 1);
+                setSyncBanner(null);
+              }}
+              className="font-medium text-amber-800 underline hover:no-underline"
+            >
+              Click here to refresh view
+            </button>
+          </div>
+        </div>
+      )}
+      {discovery && drillDown && (
+        <AccountDrillDown
+          open={true}
+          onClose={() => setDrillDown(null)}
+          tenantId={discovery.tenantId}
+          parentEntityId={discovery.parentEntityId}
+          accountCode={drillDown.accountCode}
+          accountName={drillDown.accountName}
+        />
+      )}
+      {discovery && (
+        <NewJournalEntry
+          open={newEntryOpen}
+          onClose={() => setNewEntryOpen(false)}
+          tenantId={discovery.tenantId}
+          entityId={discovery.parentEntityId}
+          onSuccess={(info) => {
+            setRefreshTrigger((t) => t + 1);
+            const entityName = discovery.parentEntityName ?? 'Entity';
+            const modeLabel = reportingMode === 'consolidated' ? 'Consolidated' : 'Individual';
+            setSuccessToast(`Entry saved to ${entityName}. View it in ${modeLabel} mode.`);
+            if (info?.postingDate) setSyncBanner({ postingDate: info.postingDate });
+          }}
+        />
+      )}
       <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+        <div className="no-print mb-6 flex flex-wrap items-center gap-4 border-b border-slate-200">
+          <button
+            type="button"
+            onClick={() => setDashboardTab('balance-sheet')}
+            className={`border-b-2 pb-3 text-sm font-medium transition-colors ${
+              dashboardTab === 'balance-sheet'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Balance Sheet
+          </button>
+          <button
+            type="button"
+            onClick={() => setDashboardTab('alerts')}
+            className={`border-b-2 pb-3 text-sm font-medium transition-colors ${
+              dashboardTab === 'alerts'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            AI Alerts
+          </button>
+        </div>
+
         <header className="no-print header mb-8 flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
             Oryens Ledger
@@ -176,8 +447,137 @@ export default function Home() {
               Balanced
             </span>
           )}
+          {showUnbalanced && (
+            <span className="flex-shrink-0 rounded-full bg-red-100 px-3 py-1 text-sm font-medium text-red-800">
+              Unbalanced
+            </span>
+          )}
+          {ledgerHealthLoading && (
+            <span className="flex-shrink-0 rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-600">
+              Close readiness…
+            </span>
+          )}
+          {!ledgerHealthLoading && ledgerHealth != null && (
+            ledgerHealth.closeReadinessScore >= 100 ? (
+              <span className="flex-shrink-0 rounded-full bg-emerald-100 px-3 py-1 text-sm font-medium text-emerald-800">
+                Books are Clean
+              </span>
+            ) : (
+              <span className="flex-shrink-0 rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-800">
+                Close Readiness: {Math.round(ledgerHealth.closeReadinessScore)}%
+              </span>
+            )
+          )}
+          <div className="ml-auto flex items-center gap-2">
+            {discovery && (
+              <button
+                type="button"
+                onClick={async () => {
+                  setRevalueLoading(true);
+                  setRevalueResult(null);
+                  try {
+                    const res = await fetch(`/api/tenants/${encodeURIComponent(discovery.tenantId)}/revalue`);
+                    const data = await res.json().catch(() => ({}));
+                    if (res.ok && data.insight != null) {
+                      setRevalueResult({
+                        insight: data.insight,
+                        totalUnrealizedGainLossCents: data.totalUnrealizedGainLossCents ?? 0,
+                      });
+                    }
+                  } finally {
+                    setRevalueLoading(false);
+                  }
+                }}
+                disabled={revalueLoading}
+                className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
+              >
+                {revalueLoading ? 'Revaluing…' : 'Revalue'}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setNewEntryOpen(true)}
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700"
+            >
+              New Entry
+            </button>
+          </div>
         </header>
 
+        {!ledgerHealthLoading && ledgerHealth != null && ledgerHealth.exceptions.length > 0 && (
+          <div className="no-print mb-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-600">
+              AI Insights &amp; Exceptions
+            </h2>
+            <ul className="space-y-2">
+              {ledgerHealth.exceptions.map((ex, idx) => (
+                <li
+                  key={`${ex.entryId}-${ex.lineId ?? idx}`}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-slate-100 bg-slate-50/50 px-3 py-2"
+                >
+                  <span className="text-sm text-slate-800">{ex.humanReadable}</span>
+                  <button
+                    type="button"
+                    onClick={() => ex.accountCode && setDrillDown({ accountCode: ex.accountCode })}
+                    disabled={!ex.accountCode}
+                    className="shrink-0 rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Fix
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {revalueResult && (
+          <div className="no-print mx-auto max-w-4xl px-4 sm:px-6 mb-4">
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50/80 px-4 py-3 text-sm text-indigo-900">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="font-medium text-indigo-800">Unrealized Gain/Loss (AI insight)</p>
+                  <p className="mt-1">{revalueResult.insight}</p>
+                  <p className="mt-2 font-mono text-indigo-800">
+                    Total: {formatCurrency(revalueResult.totalUnrealizedGainLossCents)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRevalueResult(null)}
+                  className="shrink-0 rounded p-1 text-indigo-600 hover:bg-indigo-100"
+                  aria-label="Dismiss"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {dashboardTab === 'alerts' && discovery && (
+          <DashboardAlerts tenantId={discovery.tenantId} parentEntityId={discovery.parentEntityId} />
+        )}
+
+        {dashboardTab === 'balance-sheet' && (
+        <>
+        <div className="no-print mb-4">
+          <p className="mb-2 text-sm font-medium text-slate-700">Time Travel</p>
+          <div className="flex items-center gap-4">
+            <input
+              type="range"
+              min={0}
+              max={12}
+              value={monthsBack}
+              onChange={(e) => setMonthsBack(Number(e.target.value))}
+              className="h-2 w-48 max-w-full flex-1 cursor-pointer appearance-none rounded-lg bg-slate-200 accent-indigo-600"
+            />
+            <span className="text-sm font-medium text-slate-600">
+              {monthsBack === 0 ? 'Today' : `${monthsBack} mo. ago`} — As of {formatDateMedium(asOfDate)}
+            </span>
+          </div>
+        </div>
         <div className="no-print mb-6 flex flex-wrap items-end gap-4">
           <div>
             <p className="mb-2 text-sm font-medium text-slate-700">Reporting Mode</p>
@@ -216,11 +616,23 @@ export default function Home() {
             {tableLoading && (
               <p className="mt-2 text-sm text-slate-500">Updating…</p>
             )}
+            {tableError && (
+              <p className="mt-2 text-sm text-amber-700">
+                {tableError}
+                <button
+                  type="button"
+                  onClick={() => setRefreshTrigger((t) => t + 1)}
+                  className="ml-2 font-medium underline hover:no-underline"
+                >
+                  Retry
+                </button>
+              </p>
+            )}
           </div>
           <div className="flex flex-shrink-0 items-center gap-2">
             <button
               type="button"
-              onClick={() => hasLines && downloadBalanceSheetCsv(report!.lines)}
+              onClick={() => hasLines && downloadBalanceSheetCsv(report!.lines, formatCurrency)}
               disabled={!hasLines}
               className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -241,7 +653,7 @@ export default function Home() {
         </h2>
         <div
           key={`${reportingMode}-${report?.asOfDate ?? ''}-${report?.lines?.length ?? 0}`}
-          className="rounded-xl border border-slate-200 bg-white shadow-sm animate-[fade-in_0.25s_ease-out] print:border-0 print:shadow-none"
+          className="rounded-xl border border-slate-200/80 bg-white/95 shadow-sm backdrop-blur-sm animate-[fade-in_0.25s_ease-out] print:border-0 print:shadow-none"
         >
           <div className="overflow-x-auto">
             <table className="balance-sheet-table w-full min-w-[32rem] table-fixed text-left print:min-w-0">
@@ -277,7 +689,16 @@ export default function Home() {
                         }
                       >
                         <td className="px-5 py-3 text-slate-800">
-                          {line.accountName ?? '—'}
+                          <button
+                            type="button"
+                            onClick={() => setDrillDown({ accountCode: line.accountCode, accountName: line.accountName })}
+                            className="flex items-center gap-1.5 text-left font-medium text-indigo-600 hover:text-indigo-800 hover:underline focus:outline-none focus:underline"
+                          >
+                            <span>{line.accountName ?? '—'}</span>
+                            <svg className="h-4 w-4 shrink-0 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                            </svg>
+                          </button>
                         </td>
                         <td className="px-5 py-3 font-mono text-sm text-slate-600">
                           {isNci ? (
@@ -292,7 +713,7 @@ export default function Home() {
                           )}
                         </td>
                         <td className="px-5 py-3 text-right font-mono text-sm tabular-nums text-slate-800">
-                          {formatCentsAsDollars(line.amountCents)}
+                          {formatCurrency(line.amountCents)}
                         </td>
                       </tr>
                     );
@@ -314,8 +735,10 @@ export default function Home() {
 
         {report?.asOfDate && (
           <p className="mt-4 text-sm text-slate-500 print:mt-2">
-            As of {new Date(report.asOfDate).toLocaleDateString('en-US', { dateStyle: 'medium' })}
+            As of {formatDateMedium(report.asOfDate)}
           </p>
+        )}
+        </>
         )}
       </div>
     </div>

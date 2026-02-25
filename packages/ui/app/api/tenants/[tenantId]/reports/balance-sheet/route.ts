@@ -43,7 +43,7 @@ function createTrialBalanceRepo(client: PgClient) {
       const rows = res.rows as unknown as TrialBalanceRow[];
       return rows.map((r) => ({
         accountCode: r.account_code,
-        accountName: r.account_name ?? undefined,
+        accountName: r.account_name ?? r.account_code,
         balanceCents: Number(r.balance_cents),
         currency: r.currency ?? 'USD',
         accountType: r.account_type ?? undefined,
@@ -65,8 +65,6 @@ function computeIsBalanced(accounts: TrialBalanceAccount[]): boolean {
   for (const a of accounts) {
     const type = a.accountType ?? '';
     const cents = a.balanceCents ?? 0;
-    // Debug: log each account to spot naming mismatches
-    console.log(`Account: ${a.accountName ?? a.accountCode}, Type: ${type}, Amount: ${cents}`);
     if (isAsset(type)) {
       assets += cents;
     } else if (isLiability(type)) {
@@ -91,9 +89,18 @@ export async function GET(
   const { searchParams } = new URL(request.url);
   const parentEntityId = searchParams.get('parentEntityId');
   const reportingMode = searchParams.get('reportingMode') ?? 'consolidated';
+  const asOfParam = searchParams.get('asOfDate');
 
   if (!parentEntityId) {
     return NextResponse.json({ error: 'parentEntityId query param is required' }, { status: 400 });
+  }
+
+  let asOfDate: Date;
+  if (asOfParam && /^\d{4}-\d{2}-\d{2}$/.test(asOfParam)) {
+    asOfDate = new Date(asOfParam + 'T12:00:00');
+    if (isNaN(asOfDate.getTime())) asOfDate = new Date();
+  } else {
+    asOfDate = new Date();
   }
 
   try {
@@ -107,7 +114,6 @@ export async function GET(
     try {
       const entityRepo = new EntityRepositoryPostgres(client as unknown as PgClient);
       const trialBalanceRepo = createTrialBalanceRepo(client as unknown as PgClient);
-      const asOfDate = new Date();
 
       if (reportingMode === 'entity') {
         const accounts = await trialBalanceRepo.getTrialBalance(

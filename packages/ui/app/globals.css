@@ -34,6 +34,28 @@ body {
   }
 }
 
+@keyframes magic-fill {
+  from {
+    opacity: 0.7;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-magic-fill {
+  animation: magic-fill 0.5s ease-out;
+}
+
+/* Clean SaaS / glassmorphism: soft shadows and consistent surfaces */
+.saas-card {
+  @apply rounded-xl border border-slate-200/80 bg-white/95 shadow-sm backdrop-blur-sm;
+}
+.saas-panel {
+  @apply rounded-lg border border-slate-200/80 bg-white/80 shadow-sm backdrop-blur-sm;
+}
+
 /* Print: hide navigation and controls so only the Balance Sheet remains */
 @media print {
   .no-print,

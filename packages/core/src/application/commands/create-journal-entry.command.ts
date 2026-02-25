@@ -4,6 +4,10 @@
  */
 
 import { Currency } from '../../domain/index';
+import { validateMetadata } from '../validation/metadata-validator';
+
+/** Metadata: optional key-value pairs (e.g. Department, Project, ReferenceID). Values must be string, number, or boolean. */
+export type JournalEntryMetadata = Record<string, string | number | boolean>;
 
 export interface CreateJournalEntryLineCommand {
   accountCode: string;
@@ -14,6 +18,13 @@ export interface CreateJournalEntryLineCommand {
   intercompanyPartnerId?: string;
   eliminationAccountCode?: string;
   description?: string;
+  metadata?: JournalEntryMetadata;
+  /** Triple-Entry: amount in original currency (smallest unit). */
+  transactionAmountCents?: number;
+  /** Triple-Entry: original currency code (e.g. JPY). */
+  transactionCurrencyCode?: string;
+  /** Triple-Entry: rate at posting (1 transaction unit = exchangeRate reporting units). */
+  exchangeRate?: number;
 }
 
 export interface CreateJournalEntryCommand {
@@ -24,7 +35,8 @@ export interface CreateJournalEntryCommand {
   // Business data
   postingDate: Date;
   sourceModule: string;
-  sourceDocumentId: string;
+  /** Optional; when omitted, handler may use a generated UUID. */
+  sourceDocumentId?: string;
   sourceDocumentType: string;
   description: string;
   currency: Currency;
@@ -42,6 +54,8 @@ export interface CreateJournalEntryCommand {
   createdBy?: string;
   /** WO-GL-009: Permissions for override checks (e.g. accounting:post_to_closed_period). */
   permissions?: string[];
+  /** Global Scale: optional metadata (validated against JSON Schema). */
+  metadata?: JournalEntryMetadata;
 }
 
 export class CreateJournalEntryCommandValidator {
@@ -52,7 +66,6 @@ export class CreateJournalEntryCommandValidator {
     if (!command.entityId?.trim()) errors.push('entityId is required');
     if (!command.postingDate) errors.push('postingDate is required');
     if (!command.sourceModule?.trim()) errors.push('sourceModule is required');
-    if (!command.sourceDocumentId?.trim()) errors.push('sourceDocumentId is required');
     if (!command.description?.trim()) errors.push('description is required');
     if (!command.currency) errors.push('currency is required');
 
@@ -85,6 +98,21 @@ export class CreateJournalEntryCommandValidator {
     if (command.isIntercompany && !command.counterpartyEntityId?.trim()) {
       errors.push('counterpartyEntityId is required for intercompany entries');
     }
+
+    if (command.metadata !== undefined && command.metadata !== null) {
+      const meta = validateMetadata(command.metadata);
+      if (!meta.valid && meta.errors?.length) {
+        errors.push(`metadata: ${meta.errors.join('; ')}`);
+      }
+    }
+    command.lines?.forEach((line, index) => {
+      if (line.metadata !== undefined && line.metadata !== null) {
+        const meta = validateMetadata(line.metadata);
+        if (!meta.valid && meta.errors?.length) {
+          errors.push(`line ${index + 1} metadata: ${meta.errors.join('; ')}`);
+        }
+      }
+    });
 
     return { isValid: errors.length === 0, errors };
   }

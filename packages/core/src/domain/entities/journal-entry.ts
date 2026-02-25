@@ -17,6 +17,9 @@ export class UnbalancedEntryError extends Error {
   }
 }
 
+/** Global Scale: optional metadata stored in JSONB (e.g. Department, Project, ReferenceID). */
+export type JournalEntryMetadata = Record<string, string | number | boolean>;
+
 export interface JournalEntryProps {
   id?: UUID;
   tenantId: TenantId;
@@ -35,6 +38,7 @@ export interface JournalEntryProps {
   createdBy?: UUID;
   approvedBy?: UUID;
   approvedAt?: Date;
+  metadata?: JournalEntryMetadata;
 }
 
 export class JournalEntry {
@@ -55,6 +59,7 @@ export class JournalEntry {
   public readonly createdBy?: UUID;
   public readonly approvedBy?: UUID;
   public readonly approvedAt?: Date;
+  public readonly metadata?: JournalEntryMetadata;
 
   private constructor(props: JournalEntryProps) {
     this.id = props.id || crypto.randomUUID();
@@ -74,6 +79,7 @@ export class JournalEntry {
     this.createdBy = props.createdBy;
     this.approvedBy = props.approvedBy;
     this.approvedAt = props.approvedAt;
+    this.metadata = props.metadata ? { ...props.metadata } : undefined;
 
     Object.freeze(this);
   }

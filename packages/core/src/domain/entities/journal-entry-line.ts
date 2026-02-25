@@ -7,6 +7,10 @@
 import { Money } from '../value-objects/money';
 import { UUID } from './account';
 
+/** Global Scale: optional metadata stored in JSONB. */
+export type JournalEntryLineMetadata = Record<string, string | number | boolean>;
+
+/** Triple-Entry: amount in original transaction currency (smallest unit). */
 export interface JournalEntryLineProps {
   id?: UUID;
   entryId: UUID;
@@ -18,6 +22,13 @@ export interface JournalEntryLineProps {
   intercompanyPartnerId?: UUID;
   eliminationAccountCode?: string;
   description?: string;
+  metadata?: JournalEntryLineMetadata;
+  /** Multi-currency: amount in original currency (smallest unit, e.g. yen for JPY). */
+  transactionAmountCents?: number;
+  /** Multi-currency: original currency code (e.g. JPY). */
+  transactionCurrencyCode?: string;
+  /** Multi-currency: rate at posting (1 transaction unit = exchangeRate reporting units, decimal). */
+  exchangeRate?: number;
 }
 
 export class JournalEntryLine {
@@ -31,6 +42,10 @@ export class JournalEntryLine {
   public readonly intercompanyPartnerId?: UUID;
   public readonly eliminationAccountCode?: string;
   public readonly description?: string;
+  public readonly metadata?: JournalEntryLineMetadata;
+  public readonly transactionAmountCents?: number;
+  public readonly transactionCurrencyCode?: string;
+  public readonly exchangeRate?: number;
 
   constructor(props: JournalEntryLineProps) {
     this.id = props.id || crypto.randomUUID();
@@ -43,6 +58,10 @@ export class JournalEntryLine {
     this.intercompanyPartnerId = props.intercompanyPartnerId;
     this.eliminationAccountCode = props.eliminationAccountCode;
     this.description = props.description;
+    this.metadata = props.metadata ? { ...props.metadata } : undefined;
+    this.transactionAmountCents = props.transactionAmountCents;
+    this.transactionCurrencyCode = props.transactionCurrencyCode;
+    this.exchangeRate = props.exchangeRate;
 
     this.validate();
     Object.freeze(this);
@@ -82,7 +101,11 @@ export class JournalEntryLine {
       projectId: this.projectId,
       intercompanyPartnerId: this.intercompanyPartnerId,
       eliminationAccountCode: this.eliminationAccountCode,
-      description: this.description
+      description: this.description,
+      metadata: this.metadata,
+      transactionAmountCents: this.transactionAmountCents,
+      transactionCurrencyCode: this.transactionCurrencyCode,
+      exchangeRate: this.exchangeRate,
     });
   }
 
