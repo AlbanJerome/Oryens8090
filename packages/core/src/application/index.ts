@@ -10,7 +10,7 @@ export { type ClosePeriodCommand } from './commands/close-period.command';
 // Handlers
 export {
   CreateJournalEntryCommandHandler,
-  CreateJournalEntryResult
+  type CreateJournalEntryResult
 } from './handlers/create-journal-entry.handler';
 
 export {
@@ -21,15 +21,15 @@ export {
 // Services
 export {
   IdempotencyService,
-  IdempotencyRecord,
-  IIdempotencyRepository
+  type IdempotencyRecord,
+  type IIdempotencyRepository
 } from './services/idempotency.service';
 
 export { JournalEntryService } from './services/JournalEntryService';
 
 export {
   ClosingService,
-  ClosingEntryResult
+  type ClosingEntryResult
 } from './services/ClosingService';
 
 export {
@@ -48,23 +48,23 @@ export {
 
 // Interfaces
 export {
-  IJournalEntryRepository,
-  IAccountRepository,
-  IPeriodRepository,
-  PeriodSnapshot,
-  IDomainEventBus,
-  DomainEvent,
-  TrialBalanceAccount,
-  TrialBalanceDataLine,
-  ITrialBalanceRepository,
-  IEntityRepository,
-  ICurrencyConverter
+  type IJournalEntryRepository,
+  type IAccountRepository,
+  type IPeriodRepository,
+  type PeriodSnapshot,
+  type IDomainEventBus,
+  type DomainEvent,
+  type TrialBalanceAccount,
+  type TrialBalanceDataLine,
+  type ITrialBalanceRepository,
+  type IEntityRepository,
+  type ICurrencyConverter
 } from './repositories/interfaces';
 
 // Queries (WO-GL-005)
 export {
   GetConsolidatedBalanceSheetQueryHandler,
-  GetConsolidatedBalanceSheetQuery
+  type GetConsolidatedBalanceSheetQuery
 } from './queries/get-consolidated-balance-sheet.query';
 
 // Errors
