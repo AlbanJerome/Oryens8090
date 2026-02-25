@@ -39,6 +39,20 @@ function createTrialBalanceRepo(client: PgClient) {
   };
 }
 
+function computeIsBalanced(accounts: TrialBalanceAccount[]): boolean {
+  let assets = 0,
+    liabilities = 0,
+    equity = 0;
+  for (const a of accounts) {
+    const type = (a.accountType ?? '').toLowerCase();
+    const cents = a.balanceCents ?? 0;
+    if (type === 'asset') assets += cents;
+    else if (type === 'liability') liabilities += cents;
+    else if (type === 'equity') equity += cents;
+  }
+  return assets - liabilities - equity === 0;
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ tenantId: string }> }
@@ -46,6 +60,7 @@ export async function GET(
   const { tenantId } = await params;
   const { searchParams } = new URL(request.url);
   const parentEntityId = searchParams.get('parentEntityId');
+  const reportingMode = searchParams.get('reportingMode') ?? 'consolidated';
 
   if (!parentEntityId) {
     return NextResponse.json({ error: 'parentEntityId query param is required' }, { status: 400 });
@@ -62,6 +77,32 @@ export async function GET(
     try {
       const entityRepo = new EntityRepositoryPostgres(client as unknown as PgClient);
       const trialBalanceRepo = createTrialBalanceRepo(client as unknown as PgClient);
+      const asOfDate = new Date();
+
+      if (reportingMode === 'entity') {
+        const accounts = await trialBalanceRepo.getTrialBalance(
+          tenantId,
+          parentEntityId,
+          asOfDate
+        );
+        const lines = accounts.map((a) => ({
+          accountCode: a.accountCode,
+          accountName: a.accountName,
+          amountCents: a.balanceCents,
+          currency: a.currency ?? 'USD',
+          accountType: a.accountType,
+        }));
+        const report = {
+          parentEntityId,
+          asOfDate: asOfDate.toISOString(),
+          currency: 'USD',
+          consolidationMethod: 'None' as const,
+          lines,
+          isBalanced: computeIsBalanced(accounts),
+        };
+        return NextResponse.json(report);
+      }
+
       const handler = new GetConsolidatedBalanceSheetQueryHandler(
         entityRepo,
         trialBalanceRepo,
@@ -71,7 +112,7 @@ export async function GET(
       const report = await handler.execute({
         tenantId,
         parentEntityId,
-        asOfDate: new Date(),
+        asOfDate,
       });
 
       return NextResponse.json(report);
