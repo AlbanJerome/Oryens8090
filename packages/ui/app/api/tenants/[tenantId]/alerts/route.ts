@@ -53,7 +53,7 @@ export async function GET(
         return NextResponse.json({ alerts: [] });
       }
 
-      const placeholders = entityIds.map((_, i) => `$${i + 3}`).join(',');
+      const placeholders = entityIds.map((_, i) => `$${i + 2}`).join(',');
 
       const missingDocRes = await client.query(
         `SELECT je.id, je.posting_date, je.description, je.entity_id, je.source_document_id
@@ -80,7 +80,7 @@ export async function GET(
         `SELECT je.id, je.posting_date, je.description, je.entity_id
          FROM journal_entries je
          WHERE je.tenant_id = $1 AND je.entity_id IN (${placeholders})
-           AND je.posting_date::text < $${entityIds.length + 3}`,
+           AND je.posting_date::text < $${entityIds.length + 2}`,
         [tenantId, ...entityIds, currentMonthStart]
       );
       for (const r of retroRes.rows as { id: string; posting_date: string; description: string | null; entity_id: string }[]) {
@@ -105,7 +105,7 @@ export async function GET(
       const lines = linesRes.rows as { account_code: string; debit_amount_cents: number; credit_amount_cents: number; entry_id: string; posting_date: string }[];
       const byAccount = new Map<string, number[]>();
       for (const l of lines) {
-        const amount = Number(l.debit_amount_cents) || 0 - (Number(l.credit_amount_cents) || 0);
+        const amount = (Number(l.debit_amount_cents) || 0) - (Number(l.credit_amount_cents) || 0);
         const absCents = Math.abs(amount);
         if (absCents > 0) {
           const list = byAccount.get(l.account_code) ?? [];

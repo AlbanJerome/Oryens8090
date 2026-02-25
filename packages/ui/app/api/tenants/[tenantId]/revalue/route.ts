@@ -106,7 +106,7 @@ export async function GET(
       const totalUnrealizedGainLossCents = items.reduce((sum, i) => sum + i.unrealizedCents, 0);
       const totalFormatted = totalUnrealizedGainLossCents >= 0
         ? `$${(totalUnrealizedGainLossCents / 100).toFixed(2)}`
-        : `-$${Math.abs(totalUnrealizedGainLossCents) / 100}`;
+        : `-$${(Math.abs(totalUnrealizedGainLossCents) / 100).toFixed(2)}`;
       const insight = items.length === 0
         ? 'No multi-currency lines to revalue. Post entries with a transaction currency different from reporting to see unrealized gain/loss.'
         : `Revaluation at current FX: total unrealized ${totalUnrealizedGainLossCents >= 0 ? 'gain' : 'loss'} is ${totalFormatted} (reporting currency ${REPORTING_CURRENCY}). This compares ${items.length} line(s) at posting rate vs. current rate.`;

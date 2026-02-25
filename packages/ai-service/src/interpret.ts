@@ -124,6 +124,24 @@ function extractDate(raw: string): string | null {
     const d = new Date(y, month - 1, day);
     if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
   }
+  // "12 of may", "12 of may this year" (day + of + month + optional year)
+  const dayOfMonth = new RegExp(
+    `(\\d{1,2})\\s+of\\s+(${monthNames})\\s*(?:this\\s+year|(\\d{2,4}))?\\b`,
+    'i'
+  );
+  const m3 = r.match(dayOfMonth);
+  if (m3) {
+    const day = parseInt(m3[1], 10);
+    const monthStr = m3[2].toLowerCase();
+    let month = MONTH_NAMES.indexOf(monthStr) + 1;
+    if (month === 0) month = MONTH_ABBREV.indexOf(monthStr.slice(0, 3)) + 1;
+    const yearVal = m3[3];
+    const y = yearVal
+      ? (parseInt(yearVal, 10) < 100 ? twoDigitYear(parseInt(yearVal, 10)) : parseInt(yearVal, 10))
+      : new Date().getFullYear();
+    const d = new Date(y, month - 1, day);
+    if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+  }
   return null;
 }
 
@@ -163,10 +181,12 @@ function extractDescription(
   const dateIso = opts.postingDateIso ?? extractDate(raw);
   if (dateIso) {
     const friendly = formatDateFriendly(dateIso);
+    const monthPat = '(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*';
     base = base
       .replace(/(?:on|due|date)?\s*\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}\b/gi, `on ${friendly}`)
       .replace(/(?:on|due|date)?\s*\d{1,2}(?:st|nd|rd|th)?\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{2,4}\b/gi, `on ${friendly}`)
-      .replace(/(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2},?\s+\d{2,4}\b/gi, `on ${friendly}`);
+      .replace(/(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2},?\s+\d{2,4}\b/gi, `on ${friendly}`)
+      .replace(new RegExp(`\\d{1,2}\\s+of\\s+${monthPat}\\s*(?:this\\s+year|\\d{2,4})?\\b`, 'gi'), `on ${friendly}`);
   }
   const capped = base.charAt(0).toUpperCase() + base.slice(1).toLowerCase();
   return capped.length > 120 ? capped.slice(0, 117) + '...' : capped;
@@ -231,7 +251,7 @@ export function interpretTransaction(
   const expenses = accounts.filter((a) => a.accountType.toLowerCase() === 'expense');
   const equity = accounts.filter((a) => a.accountType.toLowerCase() === 'equity');
 
-  let creditAccount = assets[0];
+  let creditAccount = assets[0] ?? equity[0];
   let debitAccount = expenses[0] ?? equity[0] ?? assets[1] ?? assets[0];
   let confidenceScore = 70;
 
@@ -246,6 +266,7 @@ export function interpretTransaction(
       : equity.map((a) => ({ account: a, score: 0.5 }));
 
     if (cashScored[0]?.score) creditAccount = cashScored[0].account;
+    else if (!creditAccount && equity[0]) creditAccount = equity[0];
     if (expenseScored[0]?.account) debitAccount = expenseScored[0].account;
     const cashScore = cashScored[0]?.score ?? 0.5;
     const expenseScore = expenseScored[0]?.score ?? 0.5;
@@ -254,16 +275,22 @@ export function interpretTransaction(
 
   confidenceScore = Math.min(98, Math.max(55, confidenceScore));
 
+  const SUSPENSE_CODE = '9999-SUSPENSE';
   const lines: InterpretedLine[] =
     amountCents > 0 && creditAccount && debitAccount
       ? [
           { accountCode: debitAccount.code, debitAmountCents: amountCents, creditAmountCents: 0 },
           { accountCode: creditAccount.code, debitAmountCents: 0, creditAmountCents: amountCents },
         ]
-      : [
-          { accountCode: assets[0]?.code ?? '', debitAmountCents: 0, creditAmountCents: 0 },
-          { accountCode: assets[1]?.code ?? equity[0]?.code ?? assets[0]?.code ?? '', debitAmountCents: 0, creditAmountCents: 0 },
-        ];
+      : (() => {
+          const firstCode = assets[0]?.code ?? equity[0]?.code ?? '';
+          const candidates = [assets[1]?.code, equity[0]?.code, assets[0]?.code].filter((c): c is string => !!c);
+          const secondCode = candidates.find((c) => c !== firstCode) ?? (firstCode ? SUSPENSE_CODE : '');
+          return [
+            { accountCode: firstCode || SUSPENSE_CODE, debitAmountCents: 0, creditAmountCents: 0 },
+            { accountCode: secondCode || SUSPENSE_CODE, debitAmountCents: 0, creditAmountCents: 0 },
+          ];
+        })();
 
   return {
     description,

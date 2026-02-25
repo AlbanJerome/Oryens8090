@@ -101,6 +101,21 @@ function extractDateFallback(raw: string): string | null {
     const d = new Date(year, month, day);
     if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
   }
+  // "12 of may", "12 of may this year"
+  const dayOfMonth = raw.match(/(\d{1,2})\s+of\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s*(?:this\s+year|(\d{2,4}))?\b/i);
+  if (dayOfMonth) {
+    const day = parseInt(dayOfMonth[1], 10);
+    const month = months[dayOfMonth[2].toLowerCase().slice(0, 3)];
+    const yearVal = dayOfMonth[3];
+    const year = yearVal
+      ? (() => {
+          const y = parseInt(yearVal, 10);
+          return y < 100 ? (y >= 50 ? 1900 + y : 2000 + y) : y;
+        })()
+      : new Date().getFullYear();
+    const d = new Date(year, month, day);
+    if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+  }
   return null;
 }
 
