@@ -25,12 +25,15 @@ export type { ClosingEntryResult } from './services/ClosingService';
 export { FinancialStatementService } from './services/FinancialStatementService';
 
 
-/* =========================
-   Repository Interfaces
-========================= */
 
-export type {
-  IAccountRepository,
-  ITrialBalanceRepository,
-  ICurrencyConverter
-} from './repositories/interfaces';
+
+export { JournalEntryService } from './services/JournalEntryService';
+
+export {
+  ClosingService  // ← Removed ClosingEntryResult here
+} from './services/ClosingService';
+
+export {
+  FinancialStatementService,
+  // ... (other exports unchanged)
+} from './services/FinancialStatementService';  
