@@ -4,9 +4,9 @@
  * Part of General Ledger Domain Layer - Hexagonal Architecture
  */
 
-import { Money } from '../value-objects/money.js';
-import { JournalEntryLine } from './journal-entry-line.js';
-import { UUID, TenantId } from './account.js';
+import { Money } from '../value-objects/money';
+import { JournalEntryLine } from './journal-entry-line';
+import { UUID, TenantId } from './account';
 
 export type EntityId = UUID;
 

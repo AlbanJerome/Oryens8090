@@ -5,7 +5,7 @@
  * Part of General Ledger Domain Layer - Hexagonal Architecture
  */
 
-import { Money, Currency } from '../value-objects/money.js';
+import { Money, Currency } from '../value-objects/money';
 
 /**
  * Minimal line representation for balance calculation (port contract).

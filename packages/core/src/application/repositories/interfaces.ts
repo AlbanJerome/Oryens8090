@@ -1,7 +1,7 @@
-import { JournalEntry, Account } from '../../domain/index.js';
-import type { Entity } from '../../domain/entities/entity.js';
-import type { Money } from '../../domain/value-objects/money.js';
-import type { Currency } from '../../domain/value-objects/money.js';
+import { JournalEntry, Account } from '../../domain/index';
+import type { Entity } from '../../domain/entities/entity';
+import type { Money } from '../../domain/value-objects/money';
+import type { Currency } from '../../domain/value-objects/money';
 
 export interface IJournalEntryRepository {
   save(entry: JournalEntry): Promise<void>;

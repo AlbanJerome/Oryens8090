@@ -7,27 +7,27 @@ export {
   toAccountDto,
   type AccountDto,
   type AccountBalanceDto
-} from './dto/AccountDto.js';
+} from './dto/AccountDto';
 
 export {
   type GetConsolidatedBalanceSheetQuery,
   type ConsolidatedBalanceSheetLineDto,
   type ConsolidatedBalanceSheetResultDto
-} from './dto/consolidation.dto.js';
+} from './dto/consolidation.dto';
 
-export { AccountController } from './controllers/AccountController.js';
+export { AccountController } from './controllers/AccountController';
 
 export {
   TrialBalanceController,
   type TrialBalanceQuery,
   type TrialBalanceReportDto
-} from './controllers/TrialBalanceController.js';
+} from './controllers/TrialBalanceController';
 
 export {
   FinancialReportController,
   type ProfitAndLossQuery,
   type BalanceSheetQuery
-} from './controllers/FinancialReportController.js';
+} from './controllers/FinancialReportController';
 
 export {
   type ProfitAndLossReportDto,
@@ -35,4 +35,4 @@ export {
   type ProfitAndLossLineDto,
   type BalanceSheetLineDto,
   type BalanceSheetSection
-} from './dto/FinancialReportDto.js';
+} from './dto/FinancialReportDto';

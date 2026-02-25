@@ -4,10 +4,10 @@
  * Part of General Ledger Domain Layer - Hexagonal Architecture
  */
 
-import { Money } from '../value-objects/money.js';
-import { JournalEntry } from '../entities/journal-entry.js';
-import { TemporalBalance } from '../entities/temporal-balance.js';
-import { TenantId, UUID } from '../entities/account.js';
+import { Money } from '../value-objects/money';
+import { JournalEntry } from '../entities/journal-entry';
+import { TemporalBalance } from '../entities/temporal-balance';
+import { TenantId, UUID } from '../entities/account';
 
 export type EntityId = UUID;
 

@@ -7,7 +7,7 @@ import type {
   Account,
   AccountType,
   NormalBalance
-} from '../../domain/entities/account.js';
+} from '../../domain/entities/account';
 
 /**
  * Account response DTO. Maps from Account entity for API responses.

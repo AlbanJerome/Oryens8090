@@ -6,4 +6,4 @@
 export {
   EntityRepositoryPostgres,
   type PgClient
-} from './repositories/EntityRepository.postgres.js';
+} from './repositories/EntityRepository.postgres';

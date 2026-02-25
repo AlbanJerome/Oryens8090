@@ -41,9 +41,9 @@ function createTrialBalanceRepo(client: PgClient) {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { tenantId: string } }
+  { params }: { params: Promise<{ tenantId: string }> }
 ) {
-  const { tenantId } = params;
+  const { tenantId } = await params;
   const { searchParams } = new URL(request.url);
   const parentEntityId = searchParams.get('parentEntityId');
 

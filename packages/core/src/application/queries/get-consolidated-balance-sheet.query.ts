@@ -5,19 +5,19 @@
  * NCI calculation uses Map for account lookups; Money uses cents × ownership% then round for precision.
  */
 
-import { Money, type Currency } from '../../domain/value-objects/money.js';
-import { Entity } from '../../domain/entities/entity.js';
-import { ConsolidationService } from '../../domain/services/ConsolidationService.js';
+import { Money, type Currency } from '../../domain/value-objects/money';
+import { Entity } from '../../domain/entities/entity';
+import { ConsolidationService } from '../../domain/services/ConsolidationService';
 import type {
   TrialBalanceAccount,
   ITrialBalanceRepository,
   IEntityRepository
-} from '../repositories/interfaces.js';
+} from '../repositories/interfaces';
 import type {
   GetConsolidatedBalanceSheetQuery,
   ConsolidatedBalanceSheetResultDto,
   ConsolidatedBalanceSheetLineDto
-} from '../../api/dto/consolidation.dto.js';
+} from '../../api/dto/consolidation.dto';
 
 export type { GetConsolidatedBalanceSheetQuery };
 

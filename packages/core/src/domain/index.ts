@@ -4,7 +4,7 @@
  */
 
 // Value Objects
-export { Money, Currency } from './value-objects/money.js';
+export { Money, Currency } from './value-objects/money';
 
 // Entities
 export { 
@@ -14,58 +14,58 @@ export {
   UUID, 
   TenantId,
   AccountProps 
-} from './entities/account.js';
+} from './entities/account';
 
 export { 
   JournalEntryLine, 
   JournalEntryLineProps 
-} from './entities/journal-entry-line.js';
+} from './entities/journal-entry-line';
 
 export { 
   JournalEntry, 
   JournalEntryProps,
   UnbalancedEntryError,
   EntityId 
-} from './entities/journal-entry.js';
+} from './entities/journal-entry';
 
 export { 
   TemporalBalance, 
   TemporalBalanceProps 
-} from './entities/temporal-balance.js';
+} from './entities/temporal-balance';
 
 export {
   Entity,
   EntityProps,
   ConsolidationMethod
-} from './entities/entity.js';
+} from './entities/entity';
 
 export {
   AccountingPeriod,
   AccountingPeriodProps,
   PeriodStatus
-} from './entities/accounting-period.js';
+} from './entities/accounting-period';
 
 // Services
 export { 
   TemporalBalanceService, 
   ITemporalBalanceRepository 
-} from './services/temporal-balance.service.js';
+} from './services/temporal-balance.service';
 
 export {
   BalanceService,
   IBalanceQueryRepository,
   BalanceLine
-} from './services/BalanceService.js';
+} from './services/BalanceService';
 
 export {
   ConsolidationService,
   FullConsolidationResult
-} from './services/ConsolidationService.js';
+} from './services/ConsolidationService';
 
 export {
   EliminationService,
   IIntercompanyTransactionSource
-} from './services/EliminationService.js';
+} from './services/EliminationService';
 
 export {
   TrialBalanceService,
@@ -73,4 +73,4 @@ export {
   type TrialBalanceDataLine,
   type TrialBalanceReport,
   type TrialBalanceReportLine
-} from './services/TrialBalanceService.js';
+} from './services/TrialBalanceService';

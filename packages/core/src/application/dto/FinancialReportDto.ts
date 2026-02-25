@@ -2,7 +2,7 @@
  * WO-GL-013: Financial Statement DTOs (application layer)
  */
 
-import type { AccountType } from '../../domain/entities/account.js';
+import type { AccountType } from '../../domain/entities/account';
 
 export interface ProfitAndLossLineDto {
   accountCode: string;

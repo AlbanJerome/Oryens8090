@@ -3,14 +3,14 @@
  * P&L and Balance Sheet with audit fixes: signage, netIncome in balance check, classification.
  */
 
-import type { AccountType } from '../../domain/entities/account.js';
+import type { AccountType } from '../../domain/entities/account';
 import type {
   ProfitAndLossReportDto,
   BalanceSheetReportDto,
   BalanceSheetSection
-} from '../dto/FinancialReportDto.js';
-import type { TrialBalanceAccount } from '../repositories/interfaces.js';
-import type { Account } from '../../domain/entities/account.js';
+} from '../dto/FinancialReportDto';
+import type { TrialBalanceAccount } from '../repositories/interfaces';
+import type { Account } from '../../domain/entities/account';
 
 /** Account with balance and optional category for classification. */
 export interface AccountBalanceWithType {

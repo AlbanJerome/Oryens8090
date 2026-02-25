@@ -4,7 +4,7 @@
  * Part of General Ledger Domain Layer - Hexagonal Architecture
  */
 
-import type { UUID, TenantId } from './account.js';
+import type { UUID, TenantId } from './account';
 
 export type PeriodStatus = 'OPEN' | 'SOFT_CLOSED' | 'HARD_CLOSED';
 

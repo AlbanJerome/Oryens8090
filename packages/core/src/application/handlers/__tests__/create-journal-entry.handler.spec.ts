@@ -3,19 +3,19 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { CreateJournalEntryCommandHandler } from '../create-journal-entry.handler.js';
-import { PeriodClosedError } from '../../errors/journal-entry.errors.js';
+import { CreateJournalEntryCommandHandler } from '../create-journal-entry.handler';
+import { PeriodClosedError } from '../../errors/journal-entry.errors';
 import type {
   IJournalEntryRepository,
   IAccountRepository,
   IPeriodRepository,
   IDomainEventBus
-} from '../../repositories/interfaces.js';
-import { TemporalBalanceService } from '../../../domain/services/temporal-balance.service.js';
-import type { ITemporalBalanceRepository } from '../../repositories/interfaces.js';
-import { JournalEntryService } from '../../services/JournalEntryService.js';
-import { IdempotencyService } from '../../services/idempotency.service.js';
-import type { IIdempotencyRepository } from '../../services/idempotency.service.js';
+} from '../../repositories/interfaces';
+import { TemporalBalanceService } from '../../../domain/services/temporal-balance.service';
+import type { ITemporalBalanceRepository } from '../../repositories/interfaces';
+import { JournalEntryService } from '../../services/JournalEntryService';
+import { IdempotencyService } from '../../services/idempotency.service';
+import type { IIdempotencyRepository } from '../../services/idempotency.service';
 
 function createValidCommand() {
   return {

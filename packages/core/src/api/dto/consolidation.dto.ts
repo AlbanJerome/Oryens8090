@@ -3,7 +3,7 @@
  * DTOs for consolidated balance sheet query and result.
  */
 
-import type { ConsolidationMethod } from '../../domain/entities/entity.js';
+import type { ConsolidationMethod } from '../../domain/entities/entity';
 
 /** Input for consolidated balance sheet request. */
 export interface GetConsolidatedBalanceSheetQuery {
