@@ -4,15 +4,19 @@
  * Entity from domain; TrialBalanceAccount from repository interfaces.
  * NCI calculation uses Map for account lookups; Money uses cents × ownership% then round for precision.
  */
-
 import { Money, type Currency } from '../../domain/value-objects/money.js';
 import { Entity } from '../../domain/entities/entity.js';
 import { ConsolidationService } from '../../domain/services/ConsolidationService.js';
+
+// ────────────────────────────────────────────────
+// Direct import for interfaces/types — avoids barrel re-export issues in Turbopack
 import type {
   TrialBalanceAccount,
   ITrialBalanceRepository,
   IEntityRepository
-} from '../repositories/interfaces.js';
+} from '@oryens/core/src/application/repositories/interfaces.js';
+// ────────────────────────────────────────────────
+
 import type {
   GetConsolidatedBalanceSheetQuery,
   ConsolidatedBalanceSheetResultDto,
@@ -109,10 +113,11 @@ export class GetConsolidatedBalanceSheetQueryHandler {
       query.parentEntityId,
       query.asOfDate
     );
+
     const parentMap = toAccountMap(parentTb);
     const currency = (parentTb[0]?.currency ?? 'USD') as Currency;
-
     const allAccountCodes = new Set<string>(parentMap.keys());
+
     const subsidiaryData: {
       entity: Entity;
       accountMap: Map<string, TrialBalanceAccount>;
@@ -190,6 +195,7 @@ export class GetConsolidatedBalanceSheetQueryHandler {
         subsidiaryData
           .map((d) => d.accountMap.get(accountCode))
           .find((acc): acc is TrialBalanceAccount => acc != null)?.accountType;
+
       if (amountCents !== 0) {
         lines.push({
           accountCode,
@@ -204,6 +210,7 @@ export class GetConsolidatedBalanceSheetQueryHandler {
     const hasFullSubsidiary = subsidiaryEntities.some(
       (s) => s.consolidationMethod === 'Full'
     );
+
     if (hasFullSubsidiary) {
       lines.push({
         accountCode: 'NCI',
@@ -222,12 +229,14 @@ export class GetConsolidatedBalanceSheetQueryHandler {
           line.accountType === 'Liability' ||
           line.accountType === 'Equity')
     );
+
     if (allLinesHaveType) {
       for (const line of lines) {
         const type = line.accountType as keyof typeof totalByType;
         totalByType[type] += line.amountCents;
       }
     }
+
     // Assets = Liabilities + Equity (including NCI); NCI is in lines as Equity when hasFullSubsidiary
     const isBalanced =
       allLinesHaveType &&
