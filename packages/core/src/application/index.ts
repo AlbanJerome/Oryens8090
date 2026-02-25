@@ -29,8 +29,8 @@ export { JournalEntryService } from './services/JournalEntryService.js';
 
 export {
   ClosingService,
-  ClosingEntryResult
-} from './services/ClosingService.js';
+  type ClosingEntryResult // Add the 'type' keyword here
+} from './services/ClosingService';
 
 export {
   FinancialStatementService,
