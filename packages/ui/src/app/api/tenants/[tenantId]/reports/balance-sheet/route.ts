@@ -7,6 +7,15 @@ import {
   type TrialBalanceAccount,
 } from '@oryens/core';
 
+// ────────────────────────────────────────────────
+// Direct import for the interface (avoids barrel re-export issue in Turbopack)
+import { ClosingEntryResult } from '@oryens/core/src/application/services/ClosingService';
+// ────────────────────────────────────────────────
+// If your alias @oryens/core points to packages/core/src (not src/application),
+// use one of these instead:
+// import { ClosingEntryResult } from '@oryens/core/application/services/ClosingService';
+// or relative: import { ClosingEntryResult } from '../../../../core/src/application/services/ClosingService';
+
 function createTrialBalanceRepo(client: PgClient) {
   return {
     getTrialBalance: async (
@@ -46,7 +55,6 @@ export async function GET(
   const { tenantId } = params;
   const { searchParams } = new URL(request.url);
   const parentEntityId = searchParams.get('parentEntityId');
-
   if (!parentEntityId) {
     return NextResponse.json({ error: 'parentEntityId query param is required' }, { status: 400 });
   }
@@ -62,6 +70,7 @@ export async function GET(
     try {
       const entityRepo = new EntityRepositoryPostgres(client as unknown as PgClient);
       const trialBalanceRepo = createTrialBalanceRepo(client as unknown as PgClient);
+
       const handler = new GetConsolidatedBalanceSheetQueryHandler(
         entityRepo,
         trialBalanceRepo,
