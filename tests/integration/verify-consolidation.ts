@@ -8,7 +8,7 @@
  */
 
 import type { Client } from 'pg';
-import type { TrialBalanceAccount } from '@oryens/core';
+import type { TrialBalanceAccount } from '@oryens/core/src/application/repositories/interfaces';
 
 async function main(): Promise<void> {
   const dbUrl = process.env.DATABASE_URL;
