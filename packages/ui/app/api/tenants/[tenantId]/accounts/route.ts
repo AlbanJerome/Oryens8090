@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { assertUserCanAccessTenant } from '@/app/lib/tenant-guard';
 
 export type AccountListItem = {
   id: string;
@@ -8,10 +9,12 @@ export type AccountListItem = {
 };
 
 export async function GET(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ tenantId: string }> }
 ) {
   const { tenantId } = await params;
+  const forbidden = await assertUserCanAccessTenant(request, tenantId);
+  if (forbidden) return forbidden;
 
   try {
     const dbUrl = process.env.DATABASE_URL;

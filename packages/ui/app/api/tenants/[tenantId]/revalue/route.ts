@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { assertUserCanAccessTenant } from '@/app/lib/tenant-guard';
 import { getRate } from '../../../../lib/currency-service';
 
 const REPORTING_CURRENCY = 'USD';
@@ -29,10 +30,12 @@ export type RevalueResponse = {
  * returns unrealized gain/loss and an AI-style insight.
  */
 export async function GET(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ tenantId: string }> }
 ) {
   const { tenantId } = await params;
+  const forbidden = await assertUserCanAccessTenant(request, tenantId);
+  if (forbidden) return forbidden;
   if (!tenantId) {
     return NextResponse.json({ error: 'tenantId required' }, { status: 400 });
   }

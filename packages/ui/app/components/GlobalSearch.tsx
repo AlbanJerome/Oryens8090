@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useTenantStore } from '../store/tenant-store';
 
 type AccountOption = { code: string; name: string };
 
@@ -15,8 +16,7 @@ export function GlobalSearch({
   onSelectAccount?: (accountCode: string, accountName: string) => void;
 }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const tenantIdFromUrl = searchParams.get('tenantId');
+  const activeTenantId = useTenantStore((s) => s.activeTenantId);
   const [query, setQuery] = useState('');
   const [accounts, setAccounts] = useState<AccountOption[]>([]);
   const [loading, setLoading] = useState(false);
@@ -25,23 +25,20 @@ export function GlobalSearch({
   const listRef = useRef<HTMLUListElement>(null);
 
   const fetchAccounts = useCallback(() => {
-    const discoveryUrl = tenantIdFromUrl
-      ? `/api/discovery?tenantId=${encodeURIComponent(tenantIdFromUrl)}`
-      : '/api/discovery';
+    if (!activeTenantId) {
+      setAccounts([]);
+      return;
+    }
     setLoading(true);
-    fetch(discoveryUrl)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (!d?.tenantId) return [];
-        return fetch(`/api/tenants/${encodeURIComponent(d.tenantId)}/accounts`).then((r) => r.json());
-      })
+    fetch(`/api/tenants/${encodeURIComponent(activeTenantId)}/accounts`)
+      .then((r) => r.json())
       .then((d) => {
         const list = (d?.accounts ?? []).map((a: { code: string; name: string }) => ({ code: a.code, name: a.name }));
         setAccounts(list);
       })
       .catch(() => setAccounts([]))
       .finally(() => setLoading(false));
-  }, [tenantIdFromUrl]);
+  }, [activeTenantId]);
 
   useEffect(() => {
     if (open) {
@@ -94,8 +91,8 @@ export function GlobalSearch({
       if (onSelectAccount) {
         onSelectAccount(item.code, item.name);
       } else {
-        const params = new URLSearchParams(searchParams.toString());
-        if (tenantIdFromUrl) params.set('tenantId', tenantIdFromUrl);
+        const params = new URLSearchParams();
+        if (activeTenantId) params.set('tenantId', activeTenantId);
         params.set('drill', item.code);
         params.set('drillName', item.name);
         router.push(`/?${params.toString()}`);
@@ -108,8 +105,8 @@ export function GlobalSearch({
     if (onSelectAccount) {
       onSelectAccount(item.code, item.name);
     } else {
-      const params = new URLSearchParams(searchParams.toString());
-      if (tenantIdFromUrl) params.set('tenantId', tenantIdFromUrl);
+      const params = new URLSearchParams();
+      if (activeTenantId) params.set('tenantId', activeTenantId);
       params.set('drill', item.code);
       params.set('drillName', item.name);
       router.push(`/?${params.toString()}`);

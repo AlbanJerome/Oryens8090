@@ -1,31 +1,30 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { useTenantStore } from '../store/tenant-store';
 
 type AccountItem = { id: string; code: string; name: string; accountType: string };
 
 export default function ChartOfAccountsPage() {
-  const searchParams = useSearchParams();
-  const tenantIdFromUrl = searchParams.get('tenantId');
-  const [discovery, setDiscovery] = useState<{ tenantId: string } | null>(null);
+  const activeTenantId = useTenantStore((s) => s.activeTenantId);
+  const isLoadingDiscovery = useTenantStore((s) => s.isLoadingDiscovery);
+  const tenantsLoaded = useTenantStore((s) => s.tenantsLoaded);
+
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!activeTenantId) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
-    const discoveryUrl = tenantIdFromUrl
-      ? `/api/discovery?tenantId=${encodeURIComponent(tenantIdFromUrl)}`
-      : '/api/discovery';
     (async () => {
       try {
-        const discoveryRes = await fetch(discoveryUrl);
-        const d = discoveryRes.ok ? await discoveryRes.json() : null;
-        if (cancelled || !d?.tenantId) return;
-        setDiscovery(d);
-        const accountsRes = await fetch(`/api/tenants/${encodeURIComponent(d.tenantId)}/accounts`);
+        setLoading(true);
+        const accountsRes = await fetch(`/api/tenants/${encodeURIComponent(activeTenantId)}/accounts`);
         const accountsData = accountsRes.ok ? await accountsRes.json() : { accounts: [] };
         if (!cancelled && accountsData?.accounts) setAccounts(accountsData.accounts);
       } catch {
@@ -35,9 +34,11 @@ export default function ChartOfAccountsPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [tenantIdFromUrl]);
+  }, [activeTenantId]);
 
-  if (loading) {
+  const loadingState = !tenantsLoaded || isLoadingDiscovery || loading;
+
+  if (loadingState) {
     return (
       <div className="mx-auto max-w-4xl px-6 py-12">
         <p className="text-slate-500">Loading chart of accounts…</p>

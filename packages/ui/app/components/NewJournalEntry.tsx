@@ -288,7 +288,7 @@ type Props = {
 };
 
 export function NewJournalEntry({ open, onClose, tenantId, entityId, onSuccess }: Props) {
-  const { formatCurrency, formatDate, currencyCode: baseCurrency } = useLocale();
+  const { formatCurrency, formatDate, currencyCode: baseCurrency, locale } = useLocale();
   const centsToDisplay = (cents: number) => (cents === 0 ? '' : formatCurrency(cents));
 
   const [entryTransactionCurrency, setEntryTransactionCurrency] = useState<string>('USD');
@@ -389,7 +389,7 @@ export function NewJournalEntry({ open, onClose, tenantId, entityId, onSuccess }
     sourceDocumentId: '',
     sourceDocumentType: 'JOURNAL',
     description: description.trim(),
-    currency: (baseCurrency === 'USD' ? 'USD' : 'USD') as 'USD',
+    currency: baseCurrency || 'USD',
     lines: lines.map((l) => ({
       accountCode: l.accountCode.trim(),
       debitAmountCents: l.debitAmountCents,
@@ -456,6 +456,7 @@ export function NewJournalEntry({ open, onClose, tenantId, entityId, onSuccess }
         confidence: number;
         confidenceScore?: number;
         postingDate?: string;
+        suggestedMetadata?: Record<string, string>;
       };
       try {
         const res = await fetch(`${aiServiceUrl}/v1/ai/interpret-transaction`, {
@@ -464,6 +465,8 @@ export function NewJournalEntry({ open, onClose, tenantId, entityId, onSuccess }
           body: JSON.stringify({
             rawInput: text,
             accounts: accounts.map((a) => ({ code: a.code, name: a.name, accountType: a.accountType })),
+            tenantSettings: { currencyCode: baseCurrency, locale },
+            metadataSchema: { fields: ['Department', 'Project', 'ReferenceID'] },
           }),
         });
         if (res.ok) {
@@ -473,6 +476,8 @@ export function NewJournalEntry({ open, onClose, tenantId, entityId, onSuccess }
             lines: Array.isArray(data.lines) ? data.lines : [],
             confidence: typeof data.confidenceScore === 'number' ? data.confidenceScore : 75,
             postingDate: typeof data.postingDate === 'string' ? data.postingDate : undefined,
+            suggestedMetadata:
+              data.suggestedMetadata && typeof data.suggestedMetadata === 'object' ? data.suggestedMetadata : undefined,
           };
         } else {
           result = await suggestJournalEntryFromText(text, accounts);
@@ -483,6 +488,15 @@ export function NewJournalEntry({ open, onClose, tenantId, entityId, onSuccess }
       setDescription(result.description);
       setConfidenceScore(result.confidenceScore ?? result.confidence);
       if (result.postingDate) setPostingDate(result.postingDate);
+      if (result.suggestedMetadata && Object.keys(result.suggestedMetadata).length > 0) {
+        setCustomFields((prev) => {
+          const byKey = new Map(prev.map((f) => [f.key, f]));
+          for (const [key, value] of Object.entries(result.suggestedMetadata!)) {
+            if (key.trim()) byKey.set(key.trim(), { key: key.trim(), value: String(value).trim() });
+          }
+          return Array.from(byKey.values());
+        });
+      }
       const newLines: JournalEntryLineDraft[] = result.lines.slice(0, 2).map((l) => ({
         id: crypto.randomUUID(),
         accountCode: l.accountCode,
@@ -788,7 +802,11 @@ export function NewJournalEntry({ open, onClose, tenantId, entityId, onSuccess }
                               const amount = parseFloat(raw);
                               if (!Number.isFinite(amount) || amount < 0) return;
                               const txCents = toSmallestUnit(amount, entryTransactionCurrency);
-                              const reportingCents = Math.round(txCents * entryExchangeRate * 100);
+                              // Rate is "reporting units per 1 transaction unit". For JPY/CNY txCents is in whole units → *100 to get reporting cents; for USD etc. txCents is already in cents → result is already in cents.
+                              const noSubunit = ['JPY', 'CNY'];
+                              const reportingCents = noSubunit.includes(entryTransactionCurrency.toUpperCase())
+                                ? Math.round(txCents * entryExchangeRate * 100)
+                                : Math.round(txCents * entryExchangeRate);
                               updateLine(line.id, {
                                 transactionAmountCents: txCents,
                                 transactionCurrencyCode: entryTransactionCurrency,

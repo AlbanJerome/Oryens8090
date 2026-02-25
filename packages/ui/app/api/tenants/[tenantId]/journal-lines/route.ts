@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { PgClient } from '@oryens/core';
+import { assertUserCanAccessTenant } from '@/app/lib/tenant-guard';
 
 export type JournalLineRow = {
   id: string;
@@ -26,6 +27,8 @@ export async function GET(
   { params }: { params: Promise<{ tenantId: string }> }
 ) {
   const { tenantId } = await params;
+  const forbidden = await assertUserCanAccessTenant(request, tenantId);
+  if (forbidden) return forbidden;
   const { searchParams } = new URL(request.url);
   const accountCode = searchParams.get('accountCode');
   const parentEntityId = searchParams.get('parentEntityId');

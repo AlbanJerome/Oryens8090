@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { assertUserCanAccessTenant } from '@/app/lib/tenant-guard';
 
 export type AuditLogRow = {
   id: string;
@@ -17,6 +18,8 @@ export async function GET(
   { params }: { params: Promise<{ tenantId: string }> }
 ) {
   const { tenantId } = await params;
+  const forbidden = await assertUserCanAccessTenant(request, tenantId);
+  if (forbidden) return forbidden;
   const { searchParams } = new URL(request.url);
   const limit = Math.min(Number(searchParams.get('limit')) || 100, 500);
   const offset = Number(searchParams.get('offset')) || 0;

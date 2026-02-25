@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { NewJournalEntry } from './components/NewJournalEntry';
 import { AccountDrillDown } from './components/AccountDrillDown';
 import { DashboardAlerts } from './components/DashboardAlerts';
-import { LocaleProvider, useLocale } from './context/LocaleContext';
+import { useLocale } from './context/LocaleContext';
+import { useTenantStore } from './store/tenant-store';
 
 type DiscoveryResponse = {
   tenantId: string;
@@ -63,13 +64,16 @@ function downloadBalanceSheetCsv(lines: BalanceSheetLine[], formatCurrency: (cen
 export default function Home() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const tenantIdFromUrl = searchParams.get('tenantId');
   const drillCode = searchParams.get('drill');
   const drillName = searchParams.get('drillName');
-  const [discovery, setDiscovery] = useState<DiscoveryResponse | null>(null);
+
+  const discovery = useTenantStore((s) => s.discovery);
+  const activeTenantId = useTenantStore((s) => s.activeTenantId);
+  const isLoadingDiscovery = useTenantStore((s) => s.isLoadingDiscovery);
+  const tenantsLoaded = useTenantStore((s) => s.tenantsLoaded);
+
   const [report, setReport] = useState<BalanceSheetResponse | null>(null);
   const [reportingMode, setReportingMode] = useState<ReportingMode>('consolidated');
-  const [loading, setLoading] = useState(true);
   const [tableLoading, setTableLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newEntryOpen, setNewEntryOpen] = useState(false);
@@ -87,42 +91,14 @@ export default function Home() {
   const [ledgerHealth, setLedgerHealth] = useState<{ exceptions: LedgerException[]; closeReadinessScore: number } | null>(null);
   const [ledgerHealthLoading, setLedgerHealthLoading] = useState(false);
 
+  const loading = !tenantsLoaded || isLoadingDiscovery;
   useEffect(() => {
-    let cancelled = false;
-
-    async function loadDiscovery() {
-      try {
-        setError(null);
-        const discoveryUrl = tenantIdFromUrl
-          ? `/api/discovery?tenantId=${encodeURIComponent(tenantIdFromUrl)}`
-          : '/api/discovery';
-        const discoveryRes = await fetch(discoveryUrl);
-        if (!discoveryRes.ok) {
-          if (discoveryRes.status === 404) {
-            setError('No root entity found. Run setup and seed data first.');
-          } else {
-            setError('Failed to load discovery.');
-          }
-          setLoading(false);
-          return;
-        }
-        const discoveryData: DiscoveryResponse = await discoveryRes.json();
-        if (cancelled) return;
-        setDiscovery(discoveryData);
-      } catch (e) {
-        if (!cancelled) {
-          setError(e instanceof Error ? e.message : 'Something went wrong.');
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+    if (tenantsLoaded && !discovery && activeTenantId) {
+      setError('No root entity found for this company.');
+    } else if (discovery) {
+      setError(null);
     }
-
-    loadDiscovery();
-    return () => {
-      cancelled = true;
-    };
-  }, [tenantIdFromUrl]);
+  }, [tenantsLoaded, discovery, activeTenantId]);
 
   const asOfDate = useMemo(() => {
     const d = new Date();
@@ -133,7 +109,7 @@ export default function Home() {
   useEffect(() => {
     setDrillDown(null);
     appliedDrillRef.current = null;
-  }, [tenantIdFromUrl]);
+  }, [activeTenantId]);
 
   useEffect(() => {
     if (!drillCode) {
@@ -237,6 +213,19 @@ export default function Home() {
     );
   }
 
+  if (tenantsLoaded && !discovery) {
+    return (
+      <div className="min-h-screen bg-slate-50 text-slate-900">
+        <div className="mx-auto max-w-4xl px-6 py-12">
+          <h1 className="text-xl font-semibold text-slate-900">Oryens Ledger</h1>
+          <p className="mt-4 text-slate-600">
+            {activeTenantId ? 'No root entity found for this company.' : 'Loading company context…'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const hasLines = (report?.lines?.length ?? 0) > 0;
   const isBalanced = report?.isBalanced ?? false;
   const showUnbalanced = hasLines && report != null && !isBalanced;
@@ -247,9 +236,8 @@ export default function Home() {
     syncBanner.postingDate !== todayYmd;
 
   return (
-    <LocaleProvider tenantId={discovery?.tenantId ?? undefined}>
-      <DashboardContent
-        discovery={discovery}
+    <DashboardContent
+      discovery={discovery}
         report={report}
         reportingMode={reportingMode}
         setReportingMode={setReportingMode}
@@ -283,7 +271,6 @@ export default function Home() {
         ledgerHealthLoading={ledgerHealthLoading}
         setLedgerHealth={setLedgerHealth}
       />
-    </LocaleProvider>
   );
 }
 

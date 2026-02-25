@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { assertUserCanAccessTenant } from '@/app/lib/tenant-guard';
 import {
   CreateJournalEntryCommandHandler,
   CreateJournalEntryCommandValidator,
@@ -170,6 +171,8 @@ export async function POST(
   { params }: { params: Promise<{ tenantId: string }> }
 ) {
   const { tenantId } = await params;
+  const forbidden = await assertUserCanAccessTenant(request, tenantId);
+  if (forbidden) return forbidden;
   let body: {
     entityId: string;
     postingDate: string;

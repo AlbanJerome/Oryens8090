@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { assertUserCanAccessTenant } from '@/app/lib/tenant-guard';
 import {
   GetConsolidatedBalanceSheetQueryHandler,
   ConsolidationService,
@@ -86,6 +87,8 @@ export async function GET(
   { params }: { params: Promise<{ tenantId: string }> }
 ) {
   const { tenantId } = await params;
+  const forbidden = await assertUserCanAccessTenant(request, tenantId);
+  if (forbidden) return forbidden;
   const { searchParams } = new URL(request.url);
   const parentEntityId = searchParams.get('parentEntityId');
   const reportingMode = searchParams.get('reportingMode') ?? 'consolidated';

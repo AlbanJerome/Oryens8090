@@ -1,11 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { GlobalSearch } from './GlobalSearch';
-
-type TenantOption = { tenantId: string; name: string };
+import { useTenantStore } from '../store/tenant-store';
 
 const MOCK_USER_NAME = 'Alex Morgan';
 
@@ -50,14 +49,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [tenants, setTenants] = useState<TenantOption[]>([]);
-  const [currentTenantId, setCurrentTenantId] = useState<string | null>(null);
-  const [currentTenantName, setCurrentTenantName] = useState<string>('');
   const [userOpen, setUserOpen] = useState(false);
   const [tenantOpen, setTenantOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
+  const userTenants = useTenantStore((s) => s.userTenants);
+  const activeTenantId = useTenantStore((s) => s.activeTenantId);
+  const discovery = useTenantStore((s) => s.discovery);
+  const setActiveTenantId = useTenantStore((s) => s.setActiveTenantId);
+  const showTenantSwitcher = typeof process.env.NEXT_PUBLIC_DEBUG_MODE === 'string' && process.env.NEXT_PUBLIC_DEBUG_MODE === 'true';
+
   const tenantIdFromUrl = searchParams.get('tenantId');
+  useEffect(() => {
+    if (tenantIdFromUrl && userTenants.some((t) => t.tenantId === tenantIdFromUrl) && tenantIdFromUrl !== activeTenantId) {
+      setActiveTenantId(tenantIdFromUrl);
+    }
+  }, [tenantIdFromUrl, userTenants, activeTenantId, setActiveTenantId]);
+
+  const currentTenantName = discovery?.parentEntityName ?? userTenants.find((t) => t.tenantId === activeTenantId)?.name ?? activeTenantId ?? '';
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -70,42 +79,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  const syncDiscovery = useCallback(() => {
-    const url = tenantIdFromUrl
-      ? `/api/discovery?tenantId=${encodeURIComponent(tenantIdFromUrl)}`
-      : '/api/discovery';
-    fetch(url)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d: { tenantId?: string; parentEntityName?: string } | null) => {
-        if (d?.tenantId) {
-          setCurrentTenantId(d.tenantId);
-          setCurrentTenantName(d.parentEntityName ?? d.tenantId);
-        }
-      })
-      .catch(() => {});
-  }, [tenantIdFromUrl]);
-
-  useEffect(() => {
-    fetch('/api/tenants')
-      .then((r) => (r.ok ? r.json() : { tenants: [] }))
-      .then((d: { tenants?: TenantOption[] }) => setTenants(d.tenants ?? []))
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    if (tenantIdFromUrl) {
-      syncDiscovery();
-    } else if (tenants.length > 0) {
-      setCurrentTenantId(tenants[0].tenantId);
-      setCurrentTenantName(tenants[0].name);
-    } else {
-      syncDiscovery();
-    }
-  }, [tenantIdFromUrl, tenants.length, syncDiscovery]);
-
   const setTenant = (tenantId: string) => {
     setTenantOpen(false);
-    const params = new URLSearchParams(searchParams.toString());
+    setActiveTenantId(tenantId);
+    const params = new URLSearchParams();
     params.set('tenantId', tenantId);
     router.push(`${pathname}?${params.toString()}`);
   };
@@ -125,7 +102,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               return (
                 <Link
                   key={item.href}
-                  href={item.href + (tenantIdFromUrl ? `?tenantId=${encodeURIComponent(tenantIdFromUrl)}` : '')}
+                  href={item.href + (activeTenantId ? `?tenantId=${encodeURIComponent(activeTenantId)}` : '')}
                   className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                     isActive
                       ? 'bg-indigo-50 text-indigo-700'
@@ -138,46 +115,54 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               );
             })}
           </nav>
-          <div className="mt-6 border-t border-slate-200/80 pt-4">
-            <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Tenant
-            </p>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => { setTenantOpen((o) => !o); setUserOpen(false); }}
-                className="flex w-full items-center gap-2 rounded-lg border border-slate-200/80 bg-white/80 px-3 py-2 text-left text-sm text-slate-700 shadow-sm hover:bg-slate-50/80"
-              >
-                <span className="min-w-0 truncate">{currentTenantName || 'Select tenant'}</span>
-                <svg className="h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              {tenantOpen && (
-                <>
-                  <div className="fixed inset-0 z-10" aria-hidden onClick={() => setTenantOpen(false)} />
-                  <ul className="absolute left-0 right-0 top-full z-20 mt-1 max-h-48 overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
-                    {tenants.map((t) => (
-                      <li key={t.tenantId}>
-                        <button
-                          type="button"
-                          onClick={() => setTenant(t.tenantId)}
-                          className={`w-full px-3 py-2 text-left text-sm hover:bg-slate-50 ${
-                            currentTenantId === t.tenantId ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700'
-                          }`}
-                        >
-                          {t.name}
-                        </button>
-                      </li>
-                    ))}
-                    {tenants.length === 0 && (
-                      <li className="px-3 py-2 text-sm text-slate-500">No tenants</li>
-                    )}
-                  </ul>
-                </>
+          {(showTenantSwitcher || currentTenantName) && (
+            <div className="mt-6 border-t border-slate-200/80 pt-4">
+              <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                Tenant
+              </p>
+              {showTenantSwitcher ? (
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => { setTenantOpen((o) => !o); setUserOpen(false); }}
+                    className="flex w-full items-center gap-2 rounded-lg border border-slate-200/80 bg-white/80 px-3 py-2 text-left text-sm text-slate-700 shadow-sm hover:bg-slate-50/80"
+                  >
+                    <span className="min-w-0 truncate">{currentTenantName || 'Select company'}</span>
+                    <svg className="h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {tenantOpen && (
+                    <>
+                      <div className="fixed inset-0 z-10" aria-hidden onClick={() => setTenantOpen(false)} />
+                      <ul className="absolute left-0 right-0 top-full z-20 mt-1 max-h-48 overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                        {userTenants.map((t) => (
+                          <li key={t.tenantId}>
+                            <button
+                              type="button"
+                              onClick={() => setTenant(t.tenantId)}
+                              className={`w-full px-3 py-2 text-left text-sm hover:bg-slate-50 ${
+                                activeTenantId === t.tenantId ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700'
+                              }`}
+                            >
+                              {t.name}
+                            </button>
+                          </li>
+                        ))}
+                        {userTenants.length === 0 && (
+                          <li className="px-3 py-2 text-sm text-slate-500">No companies</li>
+                        )}
+                      </ul>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-lg border border-slate-200/80 bg-white/80 px-3 py-2 text-sm text-slate-700">
+                  <span className="min-w-0 truncate">{currentTenantName || '—'}</span>
+                </div>
               )}
             </div>
-          </div>
+          )}
         </div>
       </aside>
 

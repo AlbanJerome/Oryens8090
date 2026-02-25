@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useLocale } from '../context/LocaleContext';
+import { useTenantStore } from '../store/tenant-store';
 
 type DiscoveryResponse = {
   tenantId: string;
@@ -177,47 +177,37 @@ function MiniLedger({
 
 export default function AuditPage() {
   const { formatCurrency, formatDate } = useLocale();
-  const searchParams = useSearchParams();
-  const tenantIdFromUrl = searchParams.get('tenantId');
-  const [discovery, setDiscovery] = useState<DiscoveryResponse | null>(null);
+  const discovery = useTenantStore((s) => s.discovery);
+  const isLoadingDiscovery = useTenantStore((s) => s.isLoadingDiscovery);
+  const tenantsLoaded = useTenantStore((s) => s.tenantsLoaded);
+
   const [entries, setEntries] = useState<AuditLogRow[]>([]);
   const [accountCodeToName, setAccountCodeToName] = useState<Map<string, string>>(new Map());
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!discovery?.tenantId) {
+      setDataLoading(false);
+      return;
+    }
     let cancelled = false;
-    async function run() {
+    (async () => {
       try {
         setError(null);
-        const discoveryUrl = tenantIdFromUrl
-          ? `/api/discovery?tenantId=${encodeURIComponent(tenantIdFromUrl)}`
-          : '/api/discovery';
-        const discRes = await fetch(discoveryUrl);
-        if (!discRes.ok) {
-          setError('Failed to load discovery.');
-          setLoading(false);
-          return;
-        }
-        const disc: DiscoveryResponse = await discRes.json();
-        if (cancelled) return;
-
+        setDataLoading(true);
         const [auditRes, accountsRes] = await Promise.all([
-          fetch(`/api/tenants/${encodeURIComponent(disc.tenantId)}/audit?limit=200`),
-          fetch(`/api/tenants/${encodeURIComponent(disc.tenantId)}/accounts`),
+          fetch(`/api/tenants/${encodeURIComponent(discovery.tenantId)}/audit?limit=200`),
+          fetch(`/api/tenants/${encodeURIComponent(discovery.tenantId)}/accounts`),
         ]);
-
+        if (cancelled) return;
         if (!auditRes.ok) {
           setError('Failed to load audit log.');
-          setLoading(false);
           return;
         }
         const auditData = await auditRes.json();
-        if (cancelled) return;
         setEntries(auditData.entries ?? []);
-        setDiscovery(disc);
-
         const map = new Map<string, string>();
         if (accountsRes.ok) {
           const accData = await accountsRes.json();
@@ -228,14 +218,13 @@ export default function AuditPage() {
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Something went wrong.');
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setDataLoading(false);
       }
-    }
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [tenantIdFromUrl]);
+    })();
+    return () => { cancelled = true; };
+  }, [discovery?.tenantId]);
+
+  const loading = !tenantsLoaded || isLoadingDiscovery || dataLoading;
 
   if (loading) {
     return (

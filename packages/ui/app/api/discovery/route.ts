@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getRequestUserTenantId } from '@/app/lib/tenant-guard';
+
+const DEBUG_MODE = process.env.DEBUG_MODE === 'true';
 
 export async function GET(request: NextRequest) {
   const dbUrl = process.env.DATABASE_URL;
@@ -11,6 +14,19 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const tenantIdParam = searchParams.get('tenantId');
+  const userTenantId = await getRequestUserTenantId(request);
+
+  // Tenant isolation: in production, only allow discovery for the user's tenant
+  const effectiveTenantId =
+    userTenantId && !DEBUG_MODE
+      ? userTenantId
+      : tenantIdParam ?? null;
+  if (userTenantId && !DEBUG_MODE && tenantIdParam && tenantIdParam !== userTenantId) {
+    return NextResponse.json(
+      { error: 'Forbidden: you do not have access to this tenant.' },
+      { status: 403 }
+    );
+  }
 
   try {
     const pg = await import('pg');
@@ -18,14 +34,14 @@ export async function GET(request: NextRequest) {
     await client.connect();
 
     try {
-      const res = tenantIdParam
+      const res = effectiveTenantId
         ? await client.query(
             `SELECT tenant_id, id, name
              FROM entities
              WHERE tenant_id = $1 AND parent_entity_id IS NULL
              ORDER BY created_at DESC NULLS LAST
              LIMIT 1`,
-            [tenantIdParam]
+            [effectiveTenantId]
           )
         : await client.query(
             `SELECT tenant_id, id, name

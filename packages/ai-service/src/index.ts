@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { interpretTransaction, type AccountInput } from './interpret.js';
+import { interpretTransaction, type AccountInput, type InterpretTransactionContext } from './interpret.js';
 import { summarizeAccountActivity, type TransactionInput } from './summarize.js';
 import { analyzeLedgerHealth, type AnalyzeLedgerHealthInput } from './analyze-ledger-health.js';
 
@@ -29,11 +29,23 @@ app.post('/v1/ai/summarize-account-activity', (req, res) => {
 
 app.post('/v1/ai/interpret-transaction', (req, res) => {
   try {
-    const body = req.body as { rawInput?: string; accounts?: AccountInput[] };
+    const body = req.body as {
+      rawInput?: string;
+      accounts?: AccountInput[];
+      tenantSettings?: { currencyCode?: string; locale?: string };
+      metadataSchema?: { fields?: string[] };
+    };
     const rawInput = typeof body.rawInput === 'string' ? body.rawInput : '';
     const accounts = Array.isArray(body.accounts) ? body.accounts : [];
+    const context: InterpretTransactionContext | undefined =
+      body.tenantSettings || body.metadataSchema
+        ? {
+            tenantSettings: body.tenantSettings,
+            metadataSchema: body.metadataSchema,
+          }
+        : undefined;
 
-    const result = interpretTransaction(rawInput, accounts);
+    const result = interpretTransaction(rawInput, accounts, context);
     res.json(result);
   } catch (err) {
     console.error('interpret-transaction error:', err);

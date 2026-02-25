@@ -22,6 +22,13 @@ export type InterpretTransactionResult = {
   confidenceScore: number;
   /** ISO date (YYYY-MM-DD) when a date was parsed from the input; set the posting date field to this. */
   postingDate?: string;
+  /** Suggested custom field values (e.g. Project, Department) extracted from raw input when metadataSchema is provided. */
+  suggestedMetadata?: Record<string, string>;
+};
+
+export type InterpretTransactionContext = {
+  tenantSettings?: { currencyCode?: string; locale?: string };
+  metadataSchema?: { fields?: string[] };
 };
 
 /** Keywords that suggest an expense (debit); matched case-insensitive against input. */
@@ -237,15 +244,43 @@ function scoreAccountForCash(account: AccountInput, rawLower: string): number {
   return code.startsWith('1') ? 0.5 : 0.2;
 }
 
+/**
+ * Extract suggested metadata from raw input (e.g. "Project: Alpha", "for project Beta").
+ * Only suggests keys that appear in metadataSchema.fields.
+ */
+function extractSuggestedMetadata(
+  raw: string,
+  metadataSchema?: { fields?: string[] }
+): Record<string, string> | undefined {
+  const fields = metadataSchema?.fields;
+  if (!fields?.length) return undefined;
+  const out: Record<string, string> = {};
+  const rawLower = raw.toLowerCase();
+  for (const field of fields) {
+    const escaped = field.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // "Project: Alpha", "project Alpha", "for project Alpha"
+    const colonRe = new RegExp(`\\b${escaped}\\s*:\\s*([^,\\.;\\n]+)`, 'i');
+    const forRe = new RegExp(`(?:for|of)\\s+${escaped}\\s+([^,\\.;\\n]+)`, 'i');
+    const match = raw.match(colonRe) ?? raw.match(forRe);
+    if (match?.[1]) {
+      out[field] = match[1].trim();
+    }
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 export function interpretTransaction(
   rawInput: string,
-  accounts: AccountInput[]
+  accounts: AccountInput[],
+  context?: InterpretTransactionContext
 ): InterpretTransactionResult {
   const raw = rawInput.trim();
   const rawLower = raw.toLowerCase();
+  // tenantSettings.currencyCode is used by the UI for display; we don't suggest a different currency here
   const amountCents = parseAmountCents(raw);
   const postingDateIso = extractDate(raw);
   const description = extractDescription(raw, { amountCents, postingDateIso });
+  const suggestedMetadata = extractSuggestedMetadata(raw, context?.metadataSchema);
 
   const assets = accounts.filter((a) => a.accountType.toLowerCase() === 'asset');
   const expenses = accounts.filter((a) => a.accountType.toLowerCase() === 'expense');
@@ -297,5 +332,6 @@ export function interpretTransaction(
     lines,
     confidenceScore,
     ...(postingDateIso ? { postingDate: postingDateIso } : {}),
+    ...(suggestedMetadata ? { suggestedMetadata } : {}),
   };
 }
