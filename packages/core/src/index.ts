@@ -5,7 +5,7 @@ export * from './domain/index.js';
 export * from './application/index.js';
 
 // API Layer (WO-GL-008)
-export * from './api/index.js';
+export * from './api/index'; // Remove the .js extension
 
 // Infrastructure (e.g. Postgres adapters)
 export {
