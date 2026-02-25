@@ -5,8 +5,8 @@
  * Part of General Ledger Domain Layer - Hexagonal Architecture
  */
 
-import { Money } from '../value-objects/money.js';
-import type { Entity } from '../entities/entity.js';
+import { Money } from '../value-objects/money';
+import type { Entity } from '../entities/entity';
 
 /** Result of full consolidation: consolidated amounts plus NCI. */
 export interface FullConsolidationResult {

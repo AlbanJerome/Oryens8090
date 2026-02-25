@@ -4,9 +4,9 @@
  * Part of General Ledger Domain Layer - Hexagonal Architecture
  */
 
-import { Money } from '../value-objects/money.js';
-import { JournalEntryLine } from './journal-entry-line.js';
-import { UUID, TenantId } from './account.js';
+import { Money } from '../value-objects/money';
+import { JournalEntryLine } from './journal-entry-line';
+import { UUID, TenantId } from './account';
 
 export type EntityId = UUID;
 
@@ -144,7 +144,7 @@ export class JournalEntry {
    * CRITICAL VALIDATION: Enforce double-entry accounting equation
    * This is the core business rule that must NEVER be violated
    */
-  private static validateDoubleEntryBalance(lines: JournalEntryLine[]): void {
+  private static validateDoubleEntryBalance(lines: readonly JournalEntryLine[]): void {
     if (lines.length === 0) {
       throw new UnbalancedEntryError('Journal entry cannot be empty');
     }

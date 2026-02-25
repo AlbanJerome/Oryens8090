@@ -5,7 +5,7 @@ export * from './domain/index';
 export * from './application/index';
 
 // API Layer (WO-GL-008)
-export * from './api/index'; 
+export * from './api/index';
 
 // Infrastructure (e.g. Postgres adapters)
 export {
@@ -26,8 +26,8 @@ export {
   EliminationService
 } from './domain/index';
 
+export type { CreateJournalEntryCommand } from './application/index';
 export {
-  CreateJournalEntryCommand,
   CreateJournalEntryCommandHandler,
   IdempotencyService
 } from './application/index';

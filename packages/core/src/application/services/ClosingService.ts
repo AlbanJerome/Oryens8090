@@ -4,15 +4,15 @@
  * Ensures net income transfer is correct across multiple currencies via ICurrencyConverter.
  */
 
-import { Money } from '../../domain/value-objects/money.js';
-import { JournalEntry } from '../../domain/entities/journal-entry.js';
-import { JournalEntryLine } from '../../domain/entities/journal-entry-line.js';
-import type { Currency } from '../../domain/value-objects/money.js';
+import { Money } from '../../domain/value-objects/money';
+import { JournalEntry } from '../../domain/entities/journal-entry';
+import { JournalEntryLine } from '../../domain/entities/journal-entry-line';
+import type { Currency } from '../../domain/value-objects/money';
 import type {
   IAccountRepository,
   ITrialBalanceRepository,
   ICurrencyConverter
-} from '../repositories/interfaces.js';
+} from '../repositories/interfaces';
 
 export interface ClosingEntryResult {
   closingEntry: JournalEntry;

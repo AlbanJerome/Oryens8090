@@ -5,13 +5,13 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { Money } from '../../value-objects/money.js';
-import { JournalEntry } from '../../entities/journal-entry.js';
-import { JournalEntryLine } from '../../entities/journal-entry-line.js';
+import { Money } from '../../value-objects/money';
+import { JournalEntry } from '../../entities/journal-entry';
+import { JournalEntryLine } from '../../entities/journal-entry-line';
 import {
   EliminationService,
   type IIntercompanyTransactionSource
-} from '../EliminationService.js';
+} from '../EliminationService';
 
 const RECV_IC = 'RECV-IC';
 const REVENUE = '4000-REV';

@@ -4,8 +4,8 @@
  * Part of General Ledger Domain Layer - Hexagonal Architecture
  */
 
-import { Money } from '../value-objects/money.js';
-import { UUID } from './account.js';
+import { Money } from '../value-objects/money';
+import { UUID } from './account';
 
 export interface JournalEntryLineProps {
   id?: UUID;

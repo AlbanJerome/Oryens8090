@@ -8,7 +8,7 @@ import {
   TrialBalanceService,
   UnbalancedLedgerError,
   type TrialBalanceDataLine
-} from '../TrialBalanceService.js';
+} from '../TrialBalanceService';
 
 function line(
   accountCode: string,

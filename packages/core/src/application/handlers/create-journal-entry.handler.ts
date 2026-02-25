@@ -4,18 +4,18 @@ import {
   JournalEntryLine,
   TemporalBalanceService,
   UnbalancedEntryError as DomainUnbalancedEntryError
-} from '../../domain/index.js';
+} from '../../domain/index';
 
 import {
   CreateJournalEntryCommand,
   CreateJournalEntryCommandValidator
-} from '../commands/create-journal-entry.command.js';
+} from '../commands/create-journal-entry.command';
 
 import {
   JournalEntryError,
   UnbalancedEntryError,
   AccountNotFoundError
-} from '../errors/journal-entry.errors.js';
+} from '../errors/journal-entry.errors';
 
 import {
   IJournalEntryRepository,
@@ -23,11 +23,11 @@ import {
   IPeriodRepository,
   IDomainEventBus,
   DomainEvent
-} from '../repositories/interfaces.js';
+} from '../repositories/interfaces';
 
-import { IdempotencyService } from '../services/idempotency.service.js';
-import { JournalEntryService } from '../services/JournalEntryService.js';
-import type { IAuditLogger } from '../services/audit-logger.service.js';
+import { IdempotencyService } from '../services/idempotency.service';
+import { JournalEntryService } from '../services/JournalEntryService';
+import type { IAuditLogger } from '../services/audit-logger.service';
 
 export interface CreateJournalEntryResult {
   journalEntryId: string;
@@ -126,8 +126,9 @@ export class CreateJournalEntryCommandHandler {
       if (error instanceof JournalEntryError) {
         throw error;
       }
+      const message = error instanceof Error ? error.message : String(error);
       throw new JournalEntryError(
-        `Failed to create journal entry: ${error.message}`,
+        `Failed to create journal entry: ${message}`,
         'UNEXPECTED_ERROR'
       );
     }

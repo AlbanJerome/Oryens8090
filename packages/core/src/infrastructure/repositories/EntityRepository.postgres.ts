@@ -3,9 +3,9 @@
  * Maps entities table (ownership_percentage, consolidation_method) to domain Entity.
  */
 
-import { Entity } from '../../domain/entities/entity.js';
-import type { ConsolidationMethod } from '../../domain/entities/entity.js';
-import type { IEntityRepository } from '../../application/repositories/interfaces.js';
+import { Entity } from '../../domain/entities/entity';
+import type { ConsolidationMethod } from '../../domain/entities/entity';
+import type { IEntityRepository } from '../../application/repositories/interfaces';
 
 /** Row shape returned by SELECT from entities table. */
 interface EntityRow {

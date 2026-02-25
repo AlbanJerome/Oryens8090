@@ -3,14 +3,14 @@
  * Account API controller. Injects BalanceService and account repository.
  */
 
-import type { Currency } from '../../domain/value-objects/money.js';
-import type { BalanceService } from '../../domain/services/BalanceService.js';
-import type { IAccountRepository } from '../../application/repositories/interfaces.js';
+import type { Currency } from '../../domain/value-objects/money';
+import type { BalanceService } from '../../domain/services/BalanceService';
+import type { IAccountRepository } from '../../application/repositories/interfaces';
 import {
   toAccountDto,
   type AccountDto,
   type AccountBalanceDto
-} from '../dto/AccountDto.js';
+} from '../dto/AccountDto';
 
 /**
  * Account controller for GL API. Use constructor injection for

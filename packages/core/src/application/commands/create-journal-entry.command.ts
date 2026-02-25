@@ -3,7 +3,7 @@
  * Command object for posting journal entries with validation
  */
 
-import { Currency } from '../../domain/index.js';
+import { Currency } from '../../domain/index';
 
 export interface CreateJournalEntryLineCommand {
   accountCode: string;

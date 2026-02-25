@@ -5,10 +5,10 @@
  * Part of General Ledger Domain Layer - Hexagonal Architecture
  */
 
-import { Money } from '../value-objects/money.js';
-import { JournalEntry } from '../entities/journal-entry.js';
-import { JournalEntryLine } from '../entities/journal-entry-line.js';
-import type { Currency } from '../value-objects/money.js';
+import { Money } from '../value-objects/money';
+import { JournalEntry } from '../entities/journal-entry';
+import { JournalEntryLine } from '../entities/journal-entry-line';
+import type { Currency } from '../value-objects/money';
 
 /**
  * Port: source of intercompany transactions (same tenant, counterparty_entity_id set).

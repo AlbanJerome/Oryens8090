@@ -7,4 +7,4 @@ export {
   type BalanceSheetSection,
   type BalanceSheetLineDto,
   type BalanceSheetReportDto
-} from '../../application/dto/FinancialReportDto.js';
+} from '../../application/dto/FinancialReportDto';

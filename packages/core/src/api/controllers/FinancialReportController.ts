@@ -4,13 +4,13 @@
  * GET /reports/balance-sheet
  */
 
-import type { ITrialBalanceRepository } from '../../application/repositories/interfaces.js';
-import type { IAccountRepository } from '../../application/repositories/interfaces.js';
-import type { FinancialStatementService } from '../../application/services/FinancialStatementService.js';
+import type { ITrialBalanceRepository } from '../../application/repositories/interfaces';
+import type { IAccountRepository } from '../../application/repositories/interfaces';
+import type { FinancialStatementService } from '../../application/services/FinancialStatementService';
 import type {
   ProfitAndLossReportDto,
   BalanceSheetReportDto
-} from '../dto/FinancialReportDto.js';
+} from '../dto/FinancialReportDto';
 
 export interface ProfitAndLossQuery {
   tenantId: string;

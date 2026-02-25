@@ -3,8 +3,8 @@
  * GET /reports/trial-balance
  */
 
-import type { IJournalEntryRepository } from '../../application/repositories/interfaces.js';
-import type { TrialBalanceService } from '../../domain/services/TrialBalanceService.js';
+import type { IJournalEntryRepository } from '../../application/repositories/interfaces';
+import type { TrialBalanceService } from '../../domain/services/TrialBalanceService';
 
 export interface TrialBalanceQuery {
   tenantId: string;

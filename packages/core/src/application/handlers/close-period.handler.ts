@@ -3,11 +3,11 @@
  * Builds closing entry, saves, updates balances, and audit-logs.
  */
 
-import { ClosingService } from '../services/ClosingService.js';
-import type { IJournalEntryRepository } from '../repositories/interfaces.js';
-import type { TemporalBalanceService } from '../../domain/services/temporal-balance.service.js';
-import type { IAuditLogger } from '../services/audit-logger.service.js';
-import type { ClosePeriodCommand } from '../commands/close-period.command.js';
+import { ClosingService } from '../services/ClosingService';
+import type { IJournalEntryRepository } from '../repositories/interfaces';
+import type { TemporalBalanceService } from '../../domain/services/temporal-balance.service';
+import type { IAuditLogger } from '../services/audit-logger.service';
+import type { ClosePeriodCommand } from '../commands/close-period.command';
 
 export interface ClosePeriodResult {
   closingEntryId: string;

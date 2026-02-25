@@ -4,24 +4,19 @@
  * Entity from domain; TrialBalanceAccount from repository interfaces.
  * NCI calculation uses Map for account lookups; Money uses cents × ownership% then round for precision.
  */
-import { Money, type Currency } from '../../domain/value-objects/money.js';
-import { Entity } from '../../domain/entities/entity.js';
-import { ConsolidationService } from '../../domain/services/ConsolidationService.js';
-
-// ────────────────────────────────────────────────
-// Direct import for interfaces/types — avoids barrel re-export issues in Turbopack
+import { Money, type Currency } from '../../domain/value-objects/money';
+import { Entity } from '../../domain/entities/entity';
+import { ConsolidationService } from '../../domain/services/ConsolidationService';
 import type {
   TrialBalanceAccount,
   ITrialBalanceRepository,
   IEntityRepository
-} from '@oryens/core/src/application/repositories/interfaces.js';
-// ────────────────────────────────────────────────
-
+} from '../repositories/interfaces';
 import type {
   GetConsolidatedBalanceSheetQuery,
   ConsolidatedBalanceSheetResultDto,
   ConsolidatedBalanceSheetLineDto
-} from '../../api/dto/consolidation.dto.js';
+} from '../../api/dto/consolidation.dto';
 
 export type { GetConsolidatedBalanceSheetQuery };
 

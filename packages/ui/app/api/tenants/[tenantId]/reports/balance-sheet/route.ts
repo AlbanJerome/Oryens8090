@@ -7,14 +7,13 @@ import {
   type TrialBalanceAccount,
 } from '@oryens/core';
 
-// ────────────────────────────────────────────────
-// Direct import for the interface (avoids barrel re-export issue in Turbopack)
-import { ClosingEntryResult } from '@oryens/core/src/application/services/ClosingService';
-// ────────────────────────────────────────────────
-// If your alias @oryens/core points to packages/core/src (not src/application),
-// use one of these instead:
-// import { ClosingEntryResult } from '@oryens/core/application/services/ClosingService';
-// or relative: import { ClosingEntryResult } from '../../../../core/src/application/services/ClosingService';
+interface TrialBalanceRow {
+  account_code: string;
+  account_name: string | null;
+  balance_cents: string | number;
+  currency: string | null;
+  account_type: string | null;
+}
 
 function createTrialBalanceRepo(client: PgClient) {
   return {
@@ -37,24 +36,41 @@ function createTrialBalanceRepo(client: PgClient) {
          GROUP BY jel.account_code, a.name, a.account_type`,
         [tenantId, entityId, dateStr]
       );
-      return res.rows.map((r) => ({
-        accountCode: r.account_code as string,
-        accountName: (r.account_name as string) ?? undefined,
+      const rows = res.rows as unknown as TrialBalanceRow[];
+      return rows.map((r) => ({
+        accountCode: r.account_code,
+        accountName: r.account_name ?? undefined,
         balanceCents: Number(r.balance_cents),
-        currency: (r.currency as string) ?? 'USD',
-        accountType: (r.account_type as string) ?? undefined,
+        currency: r.currency ?? 'USD',
+        accountType: r.account_type ?? undefined,
       }));
     },
   };
 }
 
+function computeIsBalanced(accounts: TrialBalanceAccount[]): boolean {
+  let assets = 0,
+    liabilities = 0,
+    equity = 0;
+  for (const a of accounts) {
+    const type = (a.accountType ?? '').toLowerCase();
+    const cents = a.balanceCents ?? 0;
+    if (type === 'asset') assets += cents;
+    else if (type === 'liability') liabilities += cents;
+    else if (type === 'equity') equity += cents;
+  }
+  return assets - liabilities - equity === 0;
+}
+
 export async function GET(
   request: NextRequest,
-  { params }: { params: { tenantId: string } }
+  { params }: { params: Promise<{ tenantId: string }> }
 ) {
-  const { tenantId } = params;
+  const { tenantId } = await params;
   const { searchParams } = new URL(request.url);
   const parentEntityId = searchParams.get('parentEntityId');
+  const reportingMode = searchParams.get('reportingMode') ?? 'consolidated';
+
   if (!parentEntityId) {
     return NextResponse.json({ error: 'parentEntityId query param is required' }, { status: 400 });
   }
@@ -70,6 +86,31 @@ export async function GET(
     try {
       const entityRepo = new EntityRepositoryPostgres(client as unknown as PgClient);
       const trialBalanceRepo = createTrialBalanceRepo(client as unknown as PgClient);
+      const asOfDate = new Date();
+
+      if (reportingMode === 'entity') {
+        const accounts = await trialBalanceRepo.getTrialBalance(
+          tenantId,
+          parentEntityId,
+          asOfDate
+        );
+        const lines = accounts.map((a) => ({
+          accountCode: a.accountCode,
+          accountName: a.accountName,
+          amountCents: a.balanceCents,
+          currency: a.currency ?? 'USD',
+          accountType: a.accountType,
+        }));
+        const report = {
+          parentEntityId,
+          asOfDate: asOfDate.toISOString(),
+          currency: 'USD',
+          consolidationMethod: 'None' as const,
+          lines,
+          isBalanced: computeIsBalanced(accounts),
+        };
+        return NextResponse.json(report);
+      }
 
       const handler = new GetConsolidatedBalanceSheetQueryHandler(
         entityRepo,
@@ -80,7 +121,7 @@ export async function GET(
       const report = await handler.execute({
         tenantId,
         parentEntityId,
-        asOfDate: new Date(),
+        asOfDate,
       });
 
       return NextResponse.json(report);

@@ -1,0 +1,16 @@
+{
+  "name": "oryens-monorepo",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "packageManager": "npm@11.8.0",
+  "devDependencies": {
+    "turbo": "^2.8.10"
+  }
+}

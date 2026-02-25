@@ -3,9 +3,9 @@
  * Checks if a period is CLOSED before allowing any new entries.
  */
 
-import { PeriodClosedError } from '../errors/journal-entry.errors.js';
-import { JournalEntryError } from '../errors/journal-entry.errors.js';
-import type { IPeriodRepository } from '../repositories/interfaces.js';
+import { PeriodClosedError } from '../errors/journal-entry.errors';
+import { JournalEntryError } from '../errors/journal-entry.errors';
+import type { IPeriodRepository } from '../repositories/interfaces';
 
 export class JournalEntryService {
   constructor(private readonly periodRepository: IPeriodRepository) {}
