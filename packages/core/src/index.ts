@@ -26,8 +26,8 @@ export {
   EliminationService
 } from './domain/index';
 
+export type { CreateJournalEntryCommand } from './application/index';
 export {
-  CreateJournalEntryCommand,
   CreateJournalEntryCommandHandler,
   IdempotencyService
 } from './application/index';

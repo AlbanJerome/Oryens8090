@@ -7,6 +7,14 @@ import {
   type TrialBalanceAccount,
 } from '@oryens/core';
 
+interface TrialBalanceRow {
+  account_code: string;
+  account_name: string | null;
+  balance_cents: string | number;
+  currency: string | null;
+  account_type: string | null;
+}
+
 function createTrialBalanceRepo(client: PgClient) {
   return {
     getTrialBalance: async (
@@ -28,12 +36,13 @@ function createTrialBalanceRepo(client: PgClient) {
          GROUP BY jel.account_code, a.name, a.account_type`,
         [tenantId, entityId, dateStr]
       );
-      return res.rows.map((r) => ({
-        accountCode: r.account_code as string,
-        accountName: (r.account_name as string) ?? undefined,
+      const rows = res.rows as unknown as TrialBalanceRow[];
+      return rows.map((r) => ({
+        accountCode: r.account_code,
+        accountName: r.account_name ?? undefined,
         balanceCents: Number(r.balance_cents),
-        currency: (r.currency as string) ?? 'USD',
-        accountType: (r.account_type as string) ?? undefined,
+        currency: r.currency ?? 'USD',
+        accountType: r.account_type ?? undefined,
       }));
     },
   };

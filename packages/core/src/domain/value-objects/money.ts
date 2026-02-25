@@ -20,7 +20,7 @@ export class Money {
   static fromCents(cents: number | bigint, currency: Currency): Money {
     const bigintCents = typeof cents === 'number' ? BigInt(Math.round(cents)) : cents;
     
-    if (bigintCents < 0n) {
+    if (bigintCents < BigInt(0)) {
       throw new Error(`Money amount cannot be negative: ${bigintCents}`);
     }
     
@@ -47,7 +47,7 @@ export class Money {
    * Create zero money
    */
   static zero(currency: Currency): Money {
-    return new Money(0n, currency);
+    return new Money(BigInt(0), currency);
   }
 
   /**
@@ -68,7 +68,7 @@ export class Money {
     this.validateSameCurrency(other);
     const result = this.amountInSmallestUnit - other.amountInSmallestUnit;
     
-    if (result < 0n) {
+    if (result < BigInt(0)) {
       throw new Error(
         `Subtraction would result in negative amount: ${this.toString()} - ${other.toString()}`
       );
@@ -88,21 +88,21 @@ export class Money {
    * Check if amount is zero
    */
   isZero(): boolean {
-    return this.amountInSmallestUnit === 0n;
+    return this.amountInSmallestUnit === BigInt(0);
   }
 
   /**
    * Check if amount is positive
    */
   isPositive(): boolean {
-    return this.amountInSmallestUnit > 0n;
+    return this.amountInSmallestUnit > BigInt(0);
   }
 
   /**
    * Check if amount is negative
    */
   isNegative(): boolean {
-    return this.amountInSmallestUnit < 0n;
+    return this.amountInSmallestUnit < BigInt(0);
   }
 
   /**

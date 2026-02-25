@@ -108,13 +108,14 @@ export default function Home() {
 
   useEffect(() => {
     if (!discovery) return;
+    const { tenantId, parentEntityId } = discovery;
     let cancelled = false;
     setTableLoading(true);
 
     async function loadReport() {
       try {
         const reportRes = await fetch(
-          `/api/tenants/${encodeURIComponent(discovery.tenantId)}/reports/balance-sheet?parentEntityId=${encodeURIComponent(discovery.parentEntityId)}&reportingMode=${reportingMode}`
+          `/api/tenants/${encodeURIComponent(tenantId)}/reports/balance-sheet?parentEntityId=${encodeURIComponent(parentEntityId)}&reportingMode=${reportingMode}`
         );
         if (!reportRes.ok) {
           setError('Failed to load balance sheet.');

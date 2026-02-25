@@ -1,9 +1,6 @@
 // Commands
-export {
-  CreateJournalEntryCommand,
-  CreateJournalEntryLineCommand,
-  CreateJournalEntryCommandValidator
-} from './commands/create-journal-entry.command';
+export type { CreateJournalEntryCommand, CreateJournalEntryLineCommand } from './commands/create-journal-entry.command';
+export { CreateJournalEntryCommandValidator } from './commands/create-journal-entry.command';
 
 export { type ClosePeriodCommand } from './commands/close-period.command';
 
@@ -55,7 +52,6 @@ export {
   type IDomainEventBus,
   type DomainEvent,
   type TrialBalanceAccount,
-  type TrialBalanceDataLine,
   type ITrialBalanceRepository,
   type IEntityRepository,
   type ICurrencyConverter
@@ -70,7 +66,6 @@ export {
 // Errors
 export {
   JournalEntryError,
-  UnbalancedEntryError,
   AccountNotFoundError,
   PeriodClosedError,
   DuplicateEntryError,

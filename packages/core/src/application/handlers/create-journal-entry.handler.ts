@@ -126,8 +126,9 @@ export class CreateJournalEntryCommandHandler {
       if (error instanceof JournalEntryError) {
         throw error;
       }
+      const message = error instanceof Error ? error.message : String(error);
       throw new JournalEntryError(
-        `Failed to create journal entry: ${error.message}`,
+        `Failed to create journal entry: ${message}`,
         'UNEXPECTED_ERROR'
       );
     }

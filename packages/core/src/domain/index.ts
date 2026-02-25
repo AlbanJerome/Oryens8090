@@ -4,68 +4,40 @@
  */
 
 // Value Objects
-export { Money, Currency } from './value-objects/money';
+export type { Currency } from './value-objects/money';
+export { Money } from './value-objects/money';
 
 // Entities
-export { 
-  Account, 
-  AccountType, 
-  NormalBalance, 
-  UUID, 
-  TenantId,
-  AccountProps 
-} from './entities/account';
+export type { AccountType, NormalBalance, UUID, TenantId, AccountProps } from './entities/account';
+export { Account } from './entities/account';
 
-export { 
-  JournalEntryLine, 
-  JournalEntryLineProps 
-} from './entities/journal-entry-line';
+export type { JournalEntryLineProps } from './entities/journal-entry-line';
+export { JournalEntryLine } from './entities/journal-entry-line';
 
-export { 
-  JournalEntry, 
-  JournalEntryProps,
-  UnbalancedEntryError,
-  EntityId 
-} from './entities/journal-entry';
+export type { JournalEntryProps, EntityId } from './entities/journal-entry';
+export { JournalEntry, UnbalancedEntryError } from './entities/journal-entry';
 
-export { 
-  TemporalBalance, 
-  TemporalBalanceProps 
-} from './entities/temporal-balance';
+export type { TemporalBalanceProps } from './entities/temporal-balance';
+export { TemporalBalance } from './entities/temporal-balance';
 
-export {
-  Entity,
-  EntityProps,
-  ConsolidationMethod
-} from './entities/entity';
+export type { EntityProps, ConsolidationMethod } from './entities/entity';
+export { Entity } from './entities/entity';
 
-export {
-  AccountingPeriod,
-  AccountingPeriodProps,
-  PeriodStatus
-} from './entities/accounting-period';
+export type { AccountingPeriodProps, PeriodStatus } from './entities/accounting-period';
+export { AccountingPeriod } from './entities/accounting-period';
 
 // Services
-export { 
-  TemporalBalanceService, 
-  ITemporalBalanceRepository 
-} from './services/temporal-balance.service';
+export type { ITemporalBalanceRepository } from './services/temporal-balance.service';
+export { TemporalBalanceService } from './services/temporal-balance.service';
 
-export {
-  BalanceService,
-  IBalanceQueryRepository,
-  BalanceLine
-} from './services/BalanceService';
+export type { IBalanceQueryRepository, BalanceLine } from './services/BalanceService';
+export { BalanceService } from './services/BalanceService';
 
-export {
-  ConsolidationService,
-  FullConsolidationResult
-} from './services/ConsolidationService';
+export type { FullConsolidationResult } from './services/ConsolidationService';
+export { ConsolidationService } from './services/ConsolidationService';
 
-export {
-  EliminationService,
-  IIntercompanyTransactionSource
-} from './services/EliminationService';
+export type { IIntercompanyTransactionSource } from './services/EliminationService';
+export { EliminationService } from './services/EliminationService';
 
 export {
   TrialBalanceService,

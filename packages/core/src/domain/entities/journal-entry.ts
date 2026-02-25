@@ -144,7 +144,7 @@ export class JournalEntry {
    * CRITICAL VALIDATION: Enforce double-entry accounting equation
    * This is the core business rule that must NEVER be violated
    */
-  private static validateDoubleEntryBalance(lines: JournalEntryLine[]): void {
+  private static validateDoubleEntryBalance(lines: readonly JournalEntryLine[]): void {
     if (lines.length === 0) {
       throw new UnbalancedEntryError('Journal entry cannot be empty');
     }
