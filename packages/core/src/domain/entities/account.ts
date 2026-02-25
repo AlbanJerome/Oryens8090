@@ -4,7 +4,31 @@
  * Part of General Ledger Domain Layer - Hexagonal Architecture
  */
 
+/** Enum of account types with capitalized values for consistent comparison. */
+export enum AccountTypeEnum {
+  Asset = 'Asset',
+  Liability = 'Liability',
+  Equity = 'Equity',
+  Revenue = 'Revenue',
+  Expense = 'Expense',
+}
+
 export type AccountType = 'Asset' | 'Liability' | 'Equity' | 'Revenue' | 'Expense';
+
+/** Type guard: case-insensitive check that type is Asset (e.g. 'asset', 'Asset', 'ASSET'). */
+export function isAsset(type: string): type is typeof AccountTypeEnum.Asset {
+  return type != null && String(type).toLowerCase() === AccountTypeEnum.Asset.toLowerCase();
+}
+
+/** Type guard: case-insensitive check that type is Liability. */
+export function isLiability(type: string): type is typeof AccountTypeEnum.Liability {
+  return type != null && String(type).toLowerCase() === AccountTypeEnum.Liability.toLowerCase();
+}
+
+/** Type guard: case-insensitive check that type is Equity. */
+export function isEquity(type: string): type is typeof AccountTypeEnum.Equity {
+  return type != null && String(type).toLowerCase() === AccountTypeEnum.Equity.toLowerCase();
+}
 export type NormalBalance = 'Debit' | 'Credit';
 export type UUID = string;
 export type TenantId = UUID;

@@ -3,6 +3,10 @@ import {
   GetConsolidatedBalanceSheetQueryHandler,
   ConsolidationService,
   EntityRepositoryPostgres,
+  AccountTypeEnum,
+  isAsset,
+  isLiability,
+  isEquity,
   type PgClient,
   type TrialBalanceAccount,
 } from '@oryens/core';
@@ -48,18 +52,35 @@ function createTrialBalanceRepo(client: PgClient) {
   };
 }
 
+const BALANCE_SHEET_TYPES = [
+  AccountTypeEnum.Asset,
+  AccountTypeEnum.Liability,
+  AccountTypeEnum.Equity,
+] as const;
+
 function computeIsBalanced(accounts: TrialBalanceAccount[]): boolean {
   let assets = 0,
     liabilities = 0,
     equity = 0;
   for (const a of accounts) {
-    const type = (a.accountType ?? '').toLowerCase();
+    const type = a.accountType ?? '';
     const cents = a.balanceCents ?? 0;
-    if (type === 'asset') assets += cents;
-    else if (type === 'liability') liabilities += cents;
-    else if (type === 'equity') equity += cents;
+    // Debug: log each account to spot naming mismatches
+    console.log(`Account: ${a.accountName ?? a.accountCode}, Type: ${type}, Amount: ${cents}`);
+    if (isAsset(type)) {
+      assets += cents;
+    } else if (isLiability(type)) {
+      liabilities += cents;
+    } else if (isEquity(type)) {
+      equity += cents;
+    } else if (type !== '' && type !== undefined) {
+      console.warn(
+        `[computeIsBalanced] Malformed or unsupported accountType for balance check: "${type}" (account: ${a.accountCode}). Expected one of: ${BALANCE_SHEET_TYPES.join(', ')}.`
+      );
+    }
   }
-  return assets - liabilities - equity === 0;
+  // balanceCents are signed: assets positive (debit), liabilities/equity negative (credit)
+  return assets + liabilities + equity === 0;
 }
 
 export async function GET(

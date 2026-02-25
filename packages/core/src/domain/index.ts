@@ -9,7 +9,7 @@ export { Money } from './value-objects/money';
 
 // Entities
 export type { AccountType, NormalBalance, UUID, TenantId, AccountProps } from './entities/account';
-export { Account } from './entities/account';
+export { Account, AccountTypeEnum, isAsset, isLiability, isEquity } from './entities/account';
 
 export type { JournalEntryLineProps } from './entities/journal-entry-line';
 export { JournalEntryLine } from './entities/journal-entry-line';
