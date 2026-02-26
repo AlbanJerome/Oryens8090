@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { CreateJournalEntryCommandValidator, type CreateJournalEntryCommand } from '@oryens/core';
 import { useLocale } from '../context/LocaleContext';
 import { getRate } from '../lib/currency-service';
+import { MetadataField } from './MetadataField';
 
 function dollarStringToCents(s: string): number {
   const cleaned = s.replace(/[$\s,]/g, '').trim();
@@ -701,59 +702,14 @@ export function NewJournalEntry({ open, onClose, tenantId, entityId, onSuccess }
                 </div>
               </div>
 
-              <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <label className="text-sm font-medium text-slate-700">Custom Fields</label>
-                  <button
-                    type="button"
-                    onClick={() => setCustomFields((prev) => [...prev, { key: '', value: '' }])}
-                    className="text-sm font-medium text-indigo-600 hover:text-indigo-800"
-                  >
-                    + Add field
-                  </button>
-                </div>
-                <p className="mb-2 text-xs text-slate-500">
-                  Optional key-value pairs (e.g. Department, Project, ReferenceID) stored in entry metadata.
-                </p>
-                <div className="space-y-2">
-                  {customFields.map((cf, idx) => (
-                    <div key={idx} className="flex gap-2">
-                      <input
-                        type="text"
-                        value={cf.key}
-                        onChange={(e) =>
-                          setCustomFields((prev) =>
-                            prev.map((f, i) => (i === idx ? { ...f, key: e.target.value } : f))
-                          )
-                        }
-                        placeholder="Key"
-                        className="flex-1 rounded border border-slate-300 px-2 py-1.5 text-sm"
-                      />
-                      <input
-                        type="text"
-                        value={cf.value}
-                        onChange={(e) =>
-                          setCustomFields((prev) =>
-                            prev.map((f, i) => (i === idx ? { ...f, value: e.target.value } : f))
-                          )
-                        }
-                        placeholder="Value"
-                        className="flex-1 rounded border border-slate-300 px-2 py-1.5 text-sm"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setCustomFields((prev) => prev.filter((_, i) => i !== idx))}
-                        className="shrink-0 rounded p-1.5 text-slate-400 hover:bg-slate-200 hover:text-slate-600"
-                        aria-label="Remove field"
-                      >
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <MetadataField
+                value={customFields}
+                onChange={setCustomFields}
+                suggestedKeys={['Department', 'Project', 'ReferenceID']}
+                label="Custom Fields"
+                helpText="Optional key-value pairs (e.g. Department, Project, ReferenceID) stored in entry metadata."
+                disabled={saving}
+              />
 
               <div>
                 <p className="mb-2 text-xs text-slate-500">
