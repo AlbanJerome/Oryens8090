@@ -5,7 +5,7 @@
 
 import { ClosingService } from '../services/ClosingService';
 import type { IJournalEntryRepository } from '../repositories/interfaces';
-import type { TemporalBalanceService } from '../../domain/services/temporal-balance.service';
+import type { IApplyJournalEntry } from '../repositories/interfaces';
 import type { IAuditLogger } from '../services/audit-logger.service';
 import type { ClosePeriodCommand } from '../commands/close-period.command';
 
@@ -20,7 +20,7 @@ export class ClosePeriodCommandHandler {
   constructor(
     private readonly closingService: ClosingService,
     private readonly journalEntryRepository: IJournalEntryRepository,
-    private readonly temporalBalanceService: TemporalBalanceService,
+    private readonly temporalBalanceService: IApplyJournalEntry,
     private readonly auditLogger?: IAuditLogger
   ) {}
 

@@ -9,10 +9,9 @@ import type {
   IJournalEntryRepository,
   IAccountRepository,
   IPeriodRepository,
-  IDomainEventBus
+  IDomainEventBus,
+  IApplyJournalEntry
 } from '../../repositories/interfaces';
-import { TemporalBalanceService } from '../../../domain/services/temporal-balance.service';
-import type { ITemporalBalanceRepository } from '../../repositories/interfaces';
 import { JournalEntryService } from '../../services/JournalEntryService';
 import { IdempotencyService } from '../../services/idempotency.service';
 import type { IIdempotencyRepository } from '../../services/idempotency.service';
@@ -62,7 +61,7 @@ describe('CreateJournalEntryCommandHandler', () => {
       { save: vi.fn(), findById: vi.fn(), findByIdempotencyKey: vi.fn() } as unknown as IJournalEntryRepository,
       accountRepository,
       periodRepository,
-      {} as TemporalBalanceService,
+      {} as IApplyJournalEntry,
       { publish: vi.fn() } as unknown as IDomainEventBus,
       new IdempotencyService({ findExisting: vi.fn().mockResolvedValue(null), recordExecution: vi.fn() } as unknown as IIdempotencyRepository),
       new JournalEntryService(periodRepository)

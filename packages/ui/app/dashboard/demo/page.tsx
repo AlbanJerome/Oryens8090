@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { AIEntryReview } from '@/app/components/AIEntryReview';
 import { PermissionGuard } from '@/app/components/PermissionGuard';
+import { toLocalDateString } from '@/app/lib/date-utils';
 import { calculateLineTotals } from '@/app/lib/engine/formula-plugin';
 import { useCascadingSelect } from '@/app/hooks/useCascadingSelect';
 import { useTenantStore } from '@/app/store/tenant-store';
@@ -12,7 +13,7 @@ import type { TenantRole } from '@/app/store/tenant-store';
 
 const MOCK_CLOUD_BILL: AIExtractResult = {
   description: 'Cloud Server — February 2026',
-  postingDate: new Date().toISOString().slice(0, 10),
+  postingDate: toLocalDateString(new Date()),
   lines: [
     {
       accountCode: '6100-Cloud',

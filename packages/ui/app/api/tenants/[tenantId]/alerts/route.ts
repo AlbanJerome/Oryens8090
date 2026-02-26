@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { toLocalDateString } from '@/app/lib/date-utils';
 import { assertUserCanAccessTenant } from '@/app/lib/tenant-guard';
 
 export type AlertItem = {
@@ -78,7 +79,7 @@ export async function GET(
       }
 
       const now = new Date();
-      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+      const currentMonthStart = toLocalDateString(new Date(now.getFullYear(), now.getMonth(), 1));
       const retroRes = await client.query(
         `SELECT je.id, je.posting_date, je.description, je.entity_id
          FROM journal_entries je

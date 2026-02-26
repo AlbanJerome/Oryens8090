@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { PgClient } from '@oryens/core';
+import { toLocalDateString } from '@/app/lib/date-utils';
 import { assertUserCanAccessTenant } from '@/app/lib/tenant-guard';
+import type { PgJournalLineResultRow } from '@/app/types/database.extension';
 
 export type JournalLineRow = {
   id: string;
@@ -79,10 +81,10 @@ export async function GET(
         ORDER BY je.posting_date ASC, je.id ASC, jel.id ASC`;
       const res = await client.query(query, [tenantId, accountCode.trim(), ...entityIds]);
 
-      const lines: JournalLineRow[] = (res.rows as any[]).map((r) => ({
+      const lines: JournalLineRow[] = (res.rows as PgJournalLineResultRow[]).map((r) => ({
         id: r.id,
         entryId: r.entry_id,
-        postingDate: r.posting_date instanceof Date ? r.posting_date.toISOString().slice(0, 10) : String(r.posting_date),
+        postingDate: r.posting_date instanceof Date ? toLocalDateString(r.posting_date) : String(r.posting_date),
         description: r.description ?? null,
         entityId: r.entity_id,
         entityName: r.entity_name ?? null,

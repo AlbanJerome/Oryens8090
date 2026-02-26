@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { assertUserCanAccessTenant } from '@/app/lib/tenant-guard';
+import type { PgAccountRow } from '@/app/types/database.extension';
 
 export type AccountListItem = {
   id: string;
@@ -33,7 +34,7 @@ export async function GET(
         [tenantId]
       );
 
-      const accounts: AccountListItem[] = (res.rows as any[]).map((r) => ({
+      const accounts: AccountListItem[] = (res.rows as PgAccountRow[]).map((r) => ({
         id: r.id,
         code: r.code,
         name: r.name,

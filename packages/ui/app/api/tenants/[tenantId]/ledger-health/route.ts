@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { toLocalDateString } from '@/app/lib/date-utils';
 import { assertUserCanAccessTenant } from '@/app/lib/tenant-guard';
 import { getRate } from '../../../../lib/currency-service';
 
@@ -53,7 +54,7 @@ export async function GET(
 
       const since = new Date();
       since.setDate(since.getDate() - RECENT_DAYS);
-      const sinceStr = since.toISOString().slice(0, 10);
+      const sinceStr = toLocalDateString(since);
       const placeholders = entityIds.map((_, i) => `$${i + 3}`).join(',');
 
       const entriesRes = await client.query(

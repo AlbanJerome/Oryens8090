@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { toLocalDateString } from '@/app/lib/date-utils';
 import { assertUserCanAccessTenant } from '@/app/lib/tenant-guard';
+import type { PgAccountingPeriodRow } from '@/app/types/database.extension';
 
 export type AccountingPeriodItem = {
   id: string;
@@ -34,18 +36,18 @@ export async function GET(
         [tenantId]
       );
 
-      let periods: AccountingPeriodItem[] = (res.rows as any[]).map((r) => ({
+      let periods: AccountingPeriodItem[] = (res.rows as PgAccountingPeriodRow[]).map((r) => ({
         id: r.id,
         name: r.name,
-        startDate: r.start_date instanceof Date ? r.start_date.toISOString().slice(0, 10) : String(r.start_date),
-        endDate: r.end_date instanceof Date ? r.end_date.toISOString().slice(0, 10) : String(r.end_date),
+        startDate: r.start_date instanceof Date ? toLocalDateString(r.start_date) : String(r.start_date),
+        endDate: r.end_date instanceof Date ? toLocalDateString(r.end_date) : String(r.end_date),
         status: r.status ?? 'OPEN',
       }));
 
-      const today = new Date().toISOString().slice(0, 10);
+      const today = toLocalDateString(new Date());
       const now = new Date();
-      const recentStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-      const recentEnd = new Date(now.getFullYear() + 1, 11, 31).toISOString().slice(0, 10);
+      const recentStart = toLocalDateString(new Date(now.getFullYear(), now.getMonth(), 1));
+      const recentEnd = toLocalDateString(new Date(now.getFullYear() + 1, 11, 31));
       const fallbackId = '00000000-0000-0000-0000-000000000001';
       const recentFallback: AccountingPeriodItem = {
         id: fallbackId,

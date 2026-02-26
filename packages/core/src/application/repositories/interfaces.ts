@@ -1,4 +1,9 @@
 import { JournalEntry, Account } from '../../domain/index';
+
+/** Minimal interface for applying a journal entry to balances. Handlers use this so callers can pass a no-op or real implementation without casting. */
+export interface IApplyJournalEntry {
+  applyJournalEntry(tenantId: string, entityId: string, entry: JournalEntry): Promise<void>;
+}
 import type { Entity } from '../../domain/entities/entity';
 import type { Money } from '../../domain/value-objects/money';
 import type { Currency } from '../../domain/value-objects/money';

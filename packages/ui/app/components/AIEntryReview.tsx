@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { processDocument, type AIExtractResult, type AIExtractLine } from '@/app/lib/ai-client';
+import { toLocalDateString } from '@/app/lib/date-utils';
 import { calculateLineTotals, type LineItem } from '@/app/lib/engine/formula-plugin';
 import { PermissionGuard } from '@/app/components/PermissionGuard';
 
@@ -70,7 +71,7 @@ export function AIEntryReview({
   useEffect(() => {
     if (result) {
       setEditableDescription(result.description ?? '');
-      setEditablePostingDate(result.postingDate ?? new Date().toISOString().slice(0, 10));
+      setEditablePostingDate(result.postingDate ?? toLocalDateString(new Date()));
     }
   }, [result]);
 
@@ -104,7 +105,7 @@ export function AIEntryReview({
   }, [open, initialResultProp]);
 
   const description = editableDescription || (result?.description ?? '');
-  const postingDate = editablePostingDate || (result?.postingDate ?? new Date().toISOString().slice(0, 10));
+  const postingDate = editablePostingDate || (result?.postingDate ?? toLocalDateString(new Date()));
   const reasoning = result?.reasoning ?? '';
   const confidence = result?.confidence ?? 1;
   const suggestedSubtotal = result?.suggestedSubtotal ?? computedTotals?.subtotal;

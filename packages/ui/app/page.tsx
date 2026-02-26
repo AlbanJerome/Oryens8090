@@ -12,6 +12,7 @@ import { usePermissions } from './hooks/usePermissions';
 import { PermissionGuard } from './components/PermissionGuard';
 import { useLocale } from './context/LocaleContext';
 import { useTenantStore } from './store/tenant-store';
+import { toLocalDateString } from './lib/date-utils';
 
 type DiscoveryResponse = {
   tenantId: string;
@@ -60,7 +61,7 @@ function downloadBalanceSheetCsv(lines: BalanceSheetLine[], formatCurrency: (cen
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `balance-sheet-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `balance-sheet-${toLocalDateString(new Date())}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -161,19 +162,11 @@ export default function Home() {
   const [ledgerHealthLoading, setLedgerHealthLoading] = useState(false);
 
   const loading = !tenantsLoaded || isLoadingDiscovery;
-  useEffect(() => {
-    if (tenantsLoaded && !discovery && activeTenantId) {
-      const name = userTenants.find((t) => t.tenantId === activeTenantId)?.name ?? 'this company';
-      setError(`No root entity found for ${name}.`);
-    } else if (discovery) {
-      setError(null);
-    }
-  }, [tenantsLoaded, discovery, activeTenantId, userTenants]);
 
   const asOfDate = useMemo(() => {
     const d = new Date();
     d.setMonth(d.getMonth() - monthsBack);
-    return d.toISOString().slice(0, 10);
+    return toLocalDateString(d);
   }, [monthsBack]);
 
   useEffect(() => {
@@ -270,6 +263,15 @@ export default function Home() {
     );
   }
 
+  if (tenantsLoaded && !discovery) {
+    return (
+      <NoRootEntityScreen
+        tenantId={activeTenantId}
+        companyName={currentTenantName ?? 'this company'}
+      />
+    );
+  }
+
   if (error) {
     const title = currentTenantName ? `${currentTenantName}` : 'Oryens Ledger';
     return (
@@ -282,20 +284,11 @@ export default function Home() {
     );
   }
 
-  if (tenantsLoaded && !discovery) {
-    return (
-      <NoRootEntityScreen
-        tenantId={activeTenantId}
-        companyName={currentTenantName ?? 'this company'}
-      />
-    );
-  }
-
   const hasLines = (report?.lines?.length ?? 0) > 0;
   const isBalanced = report?.isBalanced ?? false;
   const showUnbalanced = hasLines && report != null && !isBalanced;
 
-  const todayYmd = new Date().toISOString().slice(0, 10);
+  const todayYmd = toLocalDateString(new Date());
   const syncBannerOutOfRange =
     syncBanner &&
     syncBanner.postingDate !== todayYmd;

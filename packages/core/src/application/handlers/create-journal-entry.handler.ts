@@ -2,7 +2,6 @@ import {
   Money,
   JournalEntry,
   JournalEntryLine,
-  TemporalBalanceService,
   UnbalancedEntryError as DomainUnbalancedEntryError
 } from '../../domain/index';
 
@@ -22,7 +21,8 @@ import {
   IAccountRepository,
   IPeriodRepository,
   IDomainEventBus,
-  DomainEvent
+  DomainEvent,
+  type IApplyJournalEntry
 } from '../repositories/interfaces';
 
 import { IdempotencyService } from '../services/idempotency.service';
@@ -42,7 +42,7 @@ export class CreateJournalEntryCommandHandler {
     private journalEntryRepository: IJournalEntryRepository,
     private accountRepository: IAccountRepository,
     private periodRepository: IPeriodRepository,
-    private temporalBalanceService: TemporalBalanceService,
+    private temporalBalanceService: IApplyJournalEntry,
     private eventBus: IDomainEventBus,
     private idempotencyService: IdempotencyService,
     private journalEntryService: JournalEntryService,

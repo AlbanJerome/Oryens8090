@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { CreateJournalEntryCommandValidator, type CreateJournalEntryCommand } from '@oryens/core';
 import { useLocale } from '../context/LocaleContext';
 import { getRate } from '../lib/currency-service';
+import { toLocalDateString } from '../lib/date-utils';
 import { MetadataField } from './MetadataField';
 
 function dollarStringToCents(s: string): number {
@@ -85,11 +86,11 @@ function extractDateFallback(raw: string): string | null {
     const year = c < 100 ? (c >= 50 ? 1900 + c : 2000 + c) : c;
     if (a >= 1 && a <= 31 && b >= 1 && b <= 12) {
       const d = new Date(year, b - 1, a);
-      if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+      if (!isNaN(d.getTime())) return toLocalDateString(d);
     }
     if (b >= 1 && b <= 31 && a >= 1 && a <= 12) {
       const d = new Date(year, a - 1, b);
-      if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+      if (!isNaN(d.getTime())) return toLocalDateString(d);
     }
   }
   const months: Record<string, number> = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
@@ -100,7 +101,7 @@ function extractDateFallback(raw: string): string | null {
     const y = parseInt(ord[3], 10);
     const year = y < 100 ? (y >= 50 ? 1900 + y : 2000 + y) : y;
     const d = new Date(year, month, day);
-    if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+    if (!isNaN(d.getTime())) return toLocalDateString(d);
   }
   // "12 of may", "12 of may this year"
   const dayOfMonth = raw.match(/(\d{1,2})\s+of\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s*(?:this\s+year|(\d{2,4}))?\b/i);
@@ -115,7 +116,7 @@ function extractDateFallback(raw: string): string | null {
         })()
       : new Date().getFullYear();
     const d = new Date(year, month, day);
-    if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+    if (!isNaN(d.getTime())) return toLocalDateString(d);
   }
   return null;
 }
@@ -317,7 +318,7 @@ export function NewJournalEntry({ open, onClose, tenantId, entityId, onSuccess }
   }, [entryTransactionCurrency, baseCurrency]);
 
   const [postingDate, setPostingDate] = useState(() =>
-    new Date().toISOString().slice(0, 10)
+    toLocalDateString(new Date())
   );
   const [description, setDescription] = useState('');
   const [lines, setLines] = useState<JournalEntryLineDraft[]>([
@@ -565,7 +566,7 @@ export function NewJournalEntry({ open, onClose, tenantId, entityId, onSuccess }
       onSuccess({ postingDate });
       onClose();
       setDescription('');
-      setPostingDate(new Date().toISOString().slice(0, 10));
+      setPostingDate(toLocalDateString(new Date()));
       setLines([
         { id: crypto.randomUUID(), accountCode: '', debitAmountCents: 0, creditAmountCents: 0 },
         { id: crypto.randomUUID(), accountCode: '', debitAmountCents: 0, creditAmountCents: 0 },

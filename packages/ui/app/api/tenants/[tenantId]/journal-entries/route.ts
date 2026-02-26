@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { assertUserCanAccessTenant, getRequestUserId } from '@/app/lib/tenant-guard';
+import { assertUserCanAccessTenant, getRequestUserId, getRequestUserTenantRows } from '@/app/lib/tenant-guard';
 import {
   CreateJournalEntryCommandHandler,
   CreateJournalEntryCommandValidator,
@@ -12,7 +12,10 @@ import {
   JournalEntryError,
   type PgClient,
   type AuditLogEntry,
+  type IApplyJournalEntry,
 } from '@oryens/core';
+import { toLocalDateString } from '@/app/lib/date-utils';
+import type { PgAccountRow } from '@/app/types/database.extension';
 
 /** Shape used by repo save(); avoids InstanceType on class with private constructor. */
 interface JournalEntryLineLike {
@@ -97,15 +100,7 @@ function createJournalEntryRepo(client: PgClient) {
 }
 
 function createAccountRepo(client: PgClient, tenantId: string) {
-  const rowToAccount = (r: {
-    id: string;
-    tenant_id: string;
-    code: string;
-    name: string;
-    account_type: string;
-    normal_balance: string;
-    created_by: string;
-  }) =>
+  const rowToAccount = (r: PgAccountRow) =>
     new Account({
       id: r.id,
       tenantId: r.tenant_id,
@@ -122,7 +117,7 @@ function createAccountRepo(client: PgClient, tenantId: string) {
         [tenantId, accountId]
       );
       const r = res.rows[0];
-      return r ? rowToAccount(r as any) : null;
+      return r ? rowToAccount(r as PgAccountRow) : null;
     },
     findByCode: async (_t: string, accountCode: string) => {
       const res = await client.query(
@@ -130,7 +125,7 @@ function createAccountRepo(client: PgClient, tenantId: string) {
         [tenantId, accountCode]
       );
       const r = res.rows[0];
-      return r ? rowToAccount(r as any) : null;
+      return r ? rowToAccount(r as PgAccountRow) : null;
     },
     findByCodes: async (_t: string, codes: string[]) => {
       if (codes.length === 0) return [];
@@ -138,7 +133,7 @@ function createAccountRepo(client: PgClient, tenantId: string) {
         `SELECT id, tenant_id, code, name, account_type, normal_balance, created_by FROM accounts WHERE tenant_id = $1 AND code = ANY($2) AND deleted_at IS NULL`,
         [tenantId, codes]
       );
-      return (res.rows as any[]).map(rowToAccount);
+      return (res.rows as PgAccountRow[]).map(rowToAccount);
     },
   };
 }
@@ -146,7 +141,7 @@ function createAccountRepo(client: PgClient, tenantId: string) {
 function createPeriodRepo(client: PgClient, tenantId: string) {
   return {
     canPostToDate: async (_t: string, date: Date) => {
-      const dateStr = date.toISOString().slice(0, 10);
+      const dateStr = toLocalDateString(date);
       const res = await client.query(
         `SELECT id, tenant_id, name, start_date, end_date, status FROM accounting_periods WHERE tenant_id = $1 AND $2::date >= start_date AND $2::date <= end_date ORDER BY end_date DESC LIMIT 1`,
         [tenantId, dateStr]
@@ -200,6 +195,14 @@ export async function POST(
   const { tenantId } = await params;
   const forbidden = await assertUserCanAccessTenant(request, tenantId);
   if (forbidden) return forbidden;
+  const userRows = await getRequestUserTenantRows(request);
+  const role = userRows.find((r) => r.tenantId === tenantId)?.role ?? 'VIEWER';
+  if (role === 'VIEWER') {
+    return NextResponse.json(
+      { error: 'Forbidden: only EDITOR or OWNER can create journal entries.' },
+      { status: 403 }
+    );
+  }
   let body: {
     entityId: string;
     postingDate: string;
@@ -278,7 +281,7 @@ export async function POST(
       const auditLogRepo = createAuditLogRepo(client);
       const idempotencyRepo = { findByKey: async () => null, save: async () => {} };
       const eventBus = { publish: async () => {} };
-      const temporalBalanceService = { applyJournalEntry: async () => {} } as any;
+      const temporalBalanceService: IApplyJournalEntry = { applyJournalEntry: async () => {} };
       const journalEntryService = new JournalEntryService(periodRepo);
       const auditLogger = new AuditLoggerService(auditLogRepo);
 

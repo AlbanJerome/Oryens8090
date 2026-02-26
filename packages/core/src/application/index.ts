@@ -54,7 +54,8 @@ export {
   type TrialBalanceAccount,
   type ITrialBalanceRepository,
   type IEntityRepository,
-  type ICurrencyConverter
+  type ICurrencyConverter,
+  type IApplyJournalEntry
 } from './repositories/interfaces';
 
 // Queries (WO-GL-005)

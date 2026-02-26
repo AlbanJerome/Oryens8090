@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { assertUserCanAccessTenant } from '@/app/lib/tenant-guard';
+import type { PgAuditLogRow } from '@/app/types/database.extension';
 
 export type AuditLogRow = {
   id: string;
@@ -44,14 +45,14 @@ export async function GET(
         [tenantId, limit, offset]
       );
 
-      const rows: AuditLogRow[] = res.rows.map((r: any) => ({
+      const rows: AuditLogRow[] = (res.rows as PgAuditLogRow[]).map((r) => ({
         id: r.id,
         tenantId: r.tenant_id,
         userId: r.user_id ?? null,
         action: r.action,
         entityType: r.entity_type ?? null,
         entityId: r.entity_id ?? null,
-        payload: typeof r.payload === 'string' ? JSON.parse(r.payload) : (r.payload ?? {}),
+        payload: typeof r.payload === 'string' ? JSON.parse(r.payload) : (r.payload as Record<string, unknown>) ?? {},
         createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
         entityName: r.entity_name ?? null,
       }));

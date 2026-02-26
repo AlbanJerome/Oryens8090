@@ -10,9 +10,9 @@ import type {
   IJournalEntryRepository,
   IAccountRepository,
   IPeriodRepository,
-  IDomainEventBus
+  IDomainEventBus,
+  IApplyJournalEntry
 } from '../../repositories/interfaces';
-import { TemporalBalanceService } from '../../../domain/services/temporal-balance.service';
 import { JournalEntryService } from '../../services/JournalEntryService';
 import { IdempotencyService } from '../../services/idempotency.service';
 import type { IIdempotencyRepository } from '../../services/idempotency.service';
@@ -54,7 +54,7 @@ function createHandler(periodRepository: IPeriodRepository) {
     } as unknown as IJournalEntryRepository,
     accountRepository,
     periodRepository,
-    {} as TemporalBalanceService,
+    {} as IApplyJournalEntry,
     { publish: vi.fn() } as unknown as IDomainEventBus,
     new IdempotencyService({
       findExisting: vi.fn().mockResolvedValue(null),
@@ -119,7 +119,7 @@ describe('WO-GL-009: Post to closed period validation', () => {
           ])
         } as unknown as IAccountRepository,
         periodRepository,
-        { applyJournalEntry: vi.fn().mockResolvedValue(undefined) } as unknown as TemporalBalanceService,
+        { applyJournalEntry: vi.fn().mockResolvedValue(undefined) } as IApplyJournalEntry,
         { publish: vi.fn() } as unknown as IDomainEventBus,
         new IdempotencyService({
           findExisting: vi.fn().mockResolvedValue(null),

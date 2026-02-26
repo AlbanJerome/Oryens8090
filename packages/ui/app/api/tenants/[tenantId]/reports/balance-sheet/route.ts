@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { toLocalDateString } from '@/app/lib/date-utils';
 import { assertUserCanAccessTenant } from '@/app/lib/tenant-guard';
 import {
   GetConsolidatedBalanceSheetQueryHandler,
@@ -27,7 +28,7 @@ function createTrialBalanceRepo(client: PgClient) {
       entityId: string,
       asOfDate: Date
     ): Promise<TrialBalanceAccount[]> => {
-      const dateStr = asOfDate.toISOString().slice(0, 10);
+      const dateStr = toLocalDateString(asOfDate);
       const res = await client.query(
         `SELECT jel.account_code,
                 a.name AS account_name,

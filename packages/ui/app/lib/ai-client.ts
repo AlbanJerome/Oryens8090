@@ -3,6 +3,8 @@
  * POSTs to the extract endpoint and returns a structure aligned with journal entries + metadata.
  */
 
+import { toLocalDateString } from './date-utils';
+
 const DEFAULT_EXTRACT_URL = 'http://localhost:8090/extract';
 
 export type AIExtractLine = {
@@ -58,7 +60,7 @@ export async function processDocument(
 
   return {
     description: data.description ?? '',
-    postingDate: data.postingDate ?? new Date().toISOString().slice(0, 10),
+    postingDate: data.postingDate ?? toLocalDateString(new Date()),
     lines: Array.isArray(data.lines) ? data.lines : [],
     metadata: data.metadata && typeof data.metadata === 'object' ? data.metadata : undefined,
     reasoning: typeof data.reasoning === 'string' ? data.reasoning : undefined,

@@ -172,7 +172,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
               return (
                 <Link
-                  key={item.href}
+                  key={item.label}
                   href={item.href + (activeTenantId ? `?tenantId=${encodeURIComponent(activeTenantId)}` : '')}
                   className={`flex items-center gap-3 rounded-r-lg border-l-4 py-2.5 pl-3 pr-3 text-sm font-medium transition-colors ${
                     isActive

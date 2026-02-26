@@ -1,6 +1,8 @@
 /**
  * Lightweight client-side formula engine plugin.
- * Calculates line totals from quantity, unit price, and tax rate.
+ * Uses integer cents for all arithmetic to avoid IEEE 754 floating-point errors.
+ * Inputs: quantity (units), unit_price (dollars), tax_rate (percent, e.g. 8.5).
+ * Outputs: subtotal, tax_amount, grand_total (dollars for display).
  */
 
 export type LineItem = {
@@ -15,26 +17,34 @@ export type LineTotals = {
   grand_total: number;
 };
 
+/** Convert dollar amount to integer cents (rounds to nearest cent). */
+function toCents(dollars: number): number {
+  return Math.round(Number(dollars) * 100);
+}
+
 /**
- * Computes subtotal (sum of quantity * unit_price), tax_amount (sum of line taxes),
- * and grand_total (subtotal + tax_amount). Amounts are rounded to 2 decimal places.
+ * Computes subtotal, tax_amount, and grand_total using integer cents.
+ * All multiplication (qty * price, tax) is done in cents; only final results are converted back to dollars.
  */
 export function calculateLineTotals(items: LineItem[]): LineTotals {
-  let subtotal = 0;
-  let tax_amount = 0;
+  let subtotalCents = 0;
+  let taxAmountCents = 0;
 
   for (const item of items) {
     const qty = Number(item.quantity) || 0;
-    const price = Number(item.unit_price) || 0;
-    const rate = Number(item.tax_rate) || 0;
-    const lineSubtotal = Math.round(qty * price * 100) / 100;
-    subtotal += lineSubtotal;
-    tax_amount += Math.round(lineSubtotal * (rate / 100) * 100) / 100;
+    const unitPriceCents = toCents(Number(item.unit_price) || 0);
+    const rateBps = Math.round((Number(item.tax_rate) || 0) * 100); // basis points (100 = 1%)
+
+    const lineSubtotalCents = Math.round(qty * unitPriceCents);
+    subtotalCents += lineSubtotalCents;
+    taxAmountCents += Math.round((lineSubtotalCents * rateBps) / 10000);
   }
 
-  subtotal = Math.round(subtotal * 100) / 100;
-  tax_amount = Math.round(tax_amount * 100) / 100;
-  const grand_total = Math.round((subtotal + tax_amount) * 100) / 100;
+  const grandTotalCents = subtotalCents + taxAmountCents;
 
-  return { subtotal, tax_amount, grand_total };
+  return {
+    subtotal: subtotalCents / 100,
+    tax_amount: taxAmountCents / 100,
+    grand_total: grandTotalCents / 100,
+  };
 }
