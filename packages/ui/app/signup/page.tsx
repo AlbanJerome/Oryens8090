@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getSupabaseBrowser } from '../lib/supabase-browser';
+import { validatePassword } from '../lib/password-validation';
 import { AuthLayout } from '../components/AuthLayout';
 
 export default function SignupPage() {
@@ -14,6 +15,9 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<string | null>(null);
 
+  const passwordValidation = useMemo(() => validatePassword(password), [password]);
+  const canSubmit = passwordValidation.valid && email.trim().length > 0;
+
   const supabase = getSupabaseBrowser();
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
 
@@ -21,6 +25,10 @@ export default function SignupPage() {
     e.preventDefault();
     if (!supabase) {
       setError('Auth is not configured.');
+      return;
+    }
+    if (!passwordValidation.valid) {
+      setError('Please meet all password requirements.');
       return;
     }
     setError(null);
@@ -93,10 +101,17 @@ export default function SignupPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            minLength={6}
+            minLength={8}
             className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 placeholder-slate-400 shadow-sm focus:border-[var(--oryens-emerald-500)] focus:outline-none focus:ring-1 focus:ring-[var(--oryens-emerald-500)]"
-            placeholder="At least 6 characters"
+            placeholder="Strong password (see requirements below)"
           />
+          <ul className="mt-2 space-y-1 text-xs text-slate-600" aria-live="polite">
+            {passwordValidation.rules.map((r) => (
+              <li key={r.key} className={r.met ? 'text-emerald-600' : 'text-slate-500'}>
+                {r.met ? '✓' : '○'} {r.label}
+              </li>
+            ))}
+          </ul>
         </div>
         {error && (
           <p className="text-sm text-red-600" role="alert">
@@ -105,8 +120,8 @@ export default function SignupPage() {
         )}
         <button
           type="submit"
-          disabled={loading}
-          className="w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-900/20 transition-all hover:bg-emerald-500 disabled:opacity-70"
+          disabled={loading || !canSubmit}
+          className="w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-900/20 transition-all hover:bg-emerald-500 disabled:opacity-70 disabled:cursor-not-allowed"
         >
           {loading ? 'Creating account…' : 'Sign up'}
         </button>

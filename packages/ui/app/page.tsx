@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { NewJournalEntry } from './components/NewJournalEntry';
+import { AIEntryReview } from './components/AIEntryReview';
 import { AccountDrillDown } from './components/AccountDrillDown';
 import { DashboardAlerts } from './components/DashboardAlerts';
 import { LoadingSkeleton } from './components/LoadingSkeleton';
@@ -64,6 +65,67 @@ function downloadBalanceSheetCsv(lines: BalanceSheetLine[], formatCurrency: (cen
   URL.revokeObjectURL(url);
 }
 
+function NoRootEntityScreen({
+  tenantId,
+  companyName,
+}: {
+  tenantId: string | null;
+  companyName: string;
+}) {
+  const loadDiscovery = useTenantStore((s) => s.loadDiscovery);
+  const [initializing, setInitializing] = useState(false);
+  const [repairError, setRepairError] = useState<string | null>(null);
+
+  const handleInitialize = async () => {
+    if (!tenantId) return;
+    setRepairError(null);
+    setInitializing(true);
+    try {
+      const res = await fetch(`/api/tenants/${encodeURIComponent(tenantId)}/ensure-root-entity`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setRepairError(data.error || `Request failed (${res.status})`);
+        return;
+      }
+      await loadDiscovery(tenantId);
+    } finally {
+      setInitializing(false);
+    }
+  };
+
+  if (!tenantId) {
+    return <LoadingSkeleton />;
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <div className="mx-auto max-w-4xl px-6 py-12">
+        <h1 className="text-xl font-semibold text-[var(--oryens-slate)]">{companyName}</h1>
+        <p className="mt-4 text-[var(--oryens-slate-muted)]">No root entity found for {companyName}.</p>
+        <p className="mt-2 text-sm text-slate-500">
+          You can initialize the ledger for this company to continue.
+        </p>
+        <div className="mt-6 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={handleInitialize}
+            disabled={initializing}
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-70"
+          >
+            {initializing ? 'Initializing…' : 'Initialize ledger'}
+          </button>
+          {repairError && (
+            <span className="text-sm text-red-600">{repairError}</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -72,14 +134,18 @@ export default function Home() {
 
   const discovery = useTenantStore((s) => s.discovery);
   const activeTenantId = useTenantStore((s) => s.activeTenantId);
+  const userTenants = useTenantStore((s) => s.userTenants);
   const isLoadingDiscovery = useTenantStore((s) => s.isLoadingDiscovery);
   const tenantsLoaded = useTenantStore((s) => s.tenantsLoaded);
+
+  const currentTenantName = userTenants.find((t) => t.tenantId === activeTenantId)?.name ?? null;
 
   const [report, setReport] = useState<BalanceSheetResponse | null>(null);
   const [reportingMode, setReportingMode] = useState<ReportingMode>('consolidated');
   const [tableLoading, setTableLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newEntryOpen, setNewEntryOpen] = useState(false);
+  const [aiReviewOpen, setAiReviewOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [tableError, setTableError] = useState<string | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
@@ -97,11 +163,12 @@ export default function Home() {
   const loading = !tenantsLoaded || isLoadingDiscovery;
   useEffect(() => {
     if (tenantsLoaded && !discovery && activeTenantId) {
-      setError('No root entity found for this company.');
+      const name = userTenants.find((t) => t.tenantId === activeTenantId)?.name ?? 'this company';
+      setError(`No root entity found for ${name}.`);
     } else if (discovery) {
       setError(null);
     }
-  }, [tenantsLoaded, discovery, activeTenantId]);
+  }, [tenantsLoaded, discovery, activeTenantId, userTenants]);
 
   const asOfDate = useMemo(() => {
     const d = new Date();
@@ -204,10 +271,11 @@ export default function Home() {
   }
 
   if (error) {
+    const title = currentTenantName ? `${currentTenantName}` : 'Oryens Ledger';
     return (
       <div className="min-h-screen bg-slate-50 text-slate-900">
         <div className="mx-auto max-w-4xl px-6 py-12">
-          <h1 className="text-xl font-semibold text-slate-900">Oryens Ledger</h1>
+          <h1 className="text-xl font-semibold text-slate-900">{title}</h1>
           <p className="mt-4 text-red-600">{error}</p>
         </div>
       </div>
@@ -216,16 +284,10 @@ export default function Home() {
 
   if (tenantsLoaded && !discovery) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        {activeTenantId ? (
-          <div className="mx-auto max-w-4xl px-6 py-12">
-            <h1 className="text-xl font-semibold text-[var(--oryens-slate)]">Oryens</h1>
-            <p className="mt-4 text-[var(--oryens-slate-muted)]">No root entity found for this company.</p>
-          </div>
-        ) : (
-          <LoadingSkeleton />
-        )}
-      </div>
+      <NoRootEntityScreen
+        tenantId={activeTenantId}
+        companyName={currentTenantName ?? 'this company'}
+      />
     );
   }
 
@@ -261,6 +323,8 @@ export default function Home() {
         todayYmd={todayYmd}
         newEntryOpen={newEntryOpen}
         setNewEntryOpen={setNewEntryOpen}
+        aiReviewOpen={aiReviewOpen}
+        setAiReviewOpen={setAiReviewOpen}
         setSuccessToast={setSuccessToast}
         setSyncBanner={setSyncBanner}
         drillDown={drillDown}
@@ -299,6 +363,8 @@ function DashboardContent({
   todayYmd,
   newEntryOpen,
   setNewEntryOpen,
+  aiReviewOpen,
+  setAiReviewOpen,
   setSuccessToast,
   setSyncBanner,
   drillDown,
@@ -333,6 +399,8 @@ function DashboardContent({
   todayYmd: string;
   newEntryOpen: boolean;
   setNewEntryOpen: (o: boolean) => void;
+  aiReviewOpen: boolean;
+  setAiReviewOpen: (o: boolean) => void;
   setSuccessToast: (s: string | null) => void;
   setSyncBanner: (s: { postingDate: string } | null) => void;
   drillDown: { accountCode: string; accountName?: string } | null;
@@ -389,19 +457,33 @@ function DashboardContent({
         />
       )}
       {discovery && (
-        <NewJournalEntry
-          open={newEntryOpen}
-          onClose={() => setNewEntryOpen(false)}
-          tenantId={discovery.tenantId}
-          entityId={discovery.parentEntityId}
-          onSuccess={(info) => {
-            setRefreshTrigger((t) => t + 1);
-            const entityName = discovery.parentEntityName ?? 'Entity';
-            const modeLabel = reportingMode === 'consolidated' ? 'Consolidated' : 'Individual';
-            setSuccessToast(`Entry saved to ${entityName}. View it in ${modeLabel} mode.`);
-            if (info?.postingDate) setSyncBanner({ postingDate: info.postingDate });
-          }}
-        />
+        <>
+          <NewJournalEntry
+            open={newEntryOpen}
+            onClose={() => setNewEntryOpen(false)}
+            tenantId={discovery.tenantId}
+            entityId={discovery.parentEntityId}
+            onSuccess={(info) => {
+              setRefreshTrigger((t) => t + 1);
+              const entityName = discovery.parentEntityName ?? 'Entity';
+              const modeLabel = reportingMode === 'consolidated' ? 'Consolidated' : 'Individual';
+              setSuccessToast(`Entry saved to ${entityName}. View it in ${modeLabel} mode.`);
+              if (info?.postingDate) setSyncBanner({ postingDate: info.postingDate });
+            }}
+          />
+          <AIEntryReview
+            open={aiReviewOpen}
+            onClose={() => setAiReviewOpen(false)}
+            tenantId={discovery.tenantId}
+            entityId={discovery.parentEntityId}
+            onSuccess={(info) => {
+              setRefreshTrigger((t) => t + 1);
+              const entityName = discovery.parentEntityName ?? 'Entity';
+              setSuccessToast(`AI-suggested entry posted to ${entityName}.`);
+              if (info?.postingDate) setSyncBanner({ postingDate: info.postingDate });
+            }}
+          />
+        </>
       )}
       <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
         <div className="no-print mb-6 flex flex-wrap items-center gap-4 border-b border-slate-200">
@@ -431,7 +513,7 @@ function DashboardContent({
 
         <header className="no-print header mb-8 flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
-            Oryens Ledger
+            {discovery?.parentEntityName ? `${discovery.parentEntityName} Ledger` : 'Ledger'}
           </h1>
           {isBalanced && (
             <span className="flex-shrink-0 rounded-full bg-emerald-100 px-3 py-1 text-sm font-medium text-emerald-800">
@@ -488,6 +570,13 @@ function DashboardContent({
               )}
             </PermissionGuard>
             <PermissionGuard requiredRole="EDITOR">
+              <button
+                type="button"
+                onClick={() => setAiReviewOpen(true)}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+              >
+                AI Review
+              </button>
               <button
                 type="button"
                 onClick={() => setNewEntryOpen(true)}

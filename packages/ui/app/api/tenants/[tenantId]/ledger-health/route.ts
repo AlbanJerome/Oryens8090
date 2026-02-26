@@ -142,7 +142,7 @@ export async function GET(
       const entries = entryIds.map((id) => {
         const meta = entryMeta[id];
         const lines = (linesByEntry.get(id) ?? []).map((l) => {
-          const amountCents = Math.abs(l.debit_amount_cents - l.credit_amount_cents) || l.debit_amount_cents + l.credit_amount_cents;
+          const amountCents = Math.abs(l.debit_amount_cents) + Math.abs(l.credit_amount_cents);
           const metaObj = l.line_metadata && typeof l.line_metadata === 'object' ? (l.line_metadata as Record<string, unknown>) : {};
           return {
             lineId: l.id,

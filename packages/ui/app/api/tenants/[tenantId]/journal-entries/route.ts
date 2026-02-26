@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { assertUserCanAccessTenant } from '@/app/lib/tenant-guard';
+import { assertUserCanAccessTenant, getRequestUserId } from '@/app/lib/tenant-guard';
 import {
   CreateJournalEntryCommandHandler,
   CreateJournalEntryCommandValidator,
@@ -205,6 +205,7 @@ export async function POST(
     postingDate: string;
     description: string;
     sourceDocumentId?: string;
+    sourceModule?: 'MANUAL' | 'AI_REVIEW';
     lines: Array<{
       accountCode: string;
       debitAmountCents: number;
@@ -231,11 +232,12 @@ export async function POST(
     );
   }
 
+  const sourceModule = body.sourceModule === 'AI_REVIEW' ? 'AI_REVIEW' : 'MANUAL';
   const command = {
     tenantId,
     entityId,
     postingDate: new Date(postingDate),
-    sourceModule: 'MANUAL',
+    sourceModule,
     sourceDocumentId: (body.sourceDocumentId != null && String(body.sourceDocumentId).trim() !== '')
       ? String(body.sourceDocumentId).trim()
       : crypto.randomUUID(),
@@ -292,6 +294,17 @@ export async function POST(
       );
 
       const result = await handler.handle(command);
+      if (sourceModule === 'AI_REVIEW' && result.isSuccess && result.journalEntryId) {
+        const userId = await getRequestUserId(request);
+        await auditLogRepo.append({
+          tenantId,
+          userId: userId ?? undefined,
+          action: 'AI_GENERATED_HUMAN_APPROVED',
+          entityType: 'JournalEntry',
+          entityId: result.journalEntryId,
+          payload: { journalEntryId: result.journalEntryId, entityId, description: description.trim() },
+        });
+      }
       return NextResponse.json({
         journalEntryId: result.journalEntryId,
         isSuccess: result.isSuccess,

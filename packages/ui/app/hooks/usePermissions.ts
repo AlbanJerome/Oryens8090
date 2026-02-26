@@ -17,10 +17,11 @@ export type Permissions = {
 export function usePermissions(): Permissions {
   const activeTenantId = useTenantStore((s) => s.activeTenantId);
   const userTenants = useTenantStore((s) => s.userTenants);
+  const demoRoleOverride = useTenantStore((s) => s.demoRoleOverride);
   const current = activeTenantId
     ? userTenants.find((t) => t.tenantId === activeTenantId)
     : null;
-  const role: TenantRole = current?.role ?? 'VIEWER';
+  const role: TenantRole = demoRoleOverride ?? current?.role ?? 'VIEWER';
   return {
     role,
     canPost: role === 'OWNER' || role === 'EDITOR',

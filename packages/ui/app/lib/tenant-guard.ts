@@ -29,7 +29,7 @@ function getRequestUserTenantIdFallback(request: NextRequest): string | null {
 /**
  * Get Supabase user id from session using request cookies. Returns null if no session or Supabase not configured.
  */
-async function getSupabaseUserId(request: NextRequest): Promise<string | null> {
+export async function getRequestUserId(request: NextRequest): Promise<string | null> {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
   const cookies = request.cookies;
   const supabase = createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -93,7 +93,7 @@ export async function getRequestUserTenantRows(request: NextRequest): Promise<Us
     const one = getRequestUserTenantIdFallback(request);
     return one ? [{ tenantId: one, role: 'OWNER' }] : [];
   }
-  const userId = await getSupabaseUserId(request);
+  const userId = await getRequestUserId(request);
   if (!userId) return [];
   return getTenantRowsForUser(userId);
 }
@@ -110,7 +110,7 @@ export async function getRequestUserTenantIds(request: NextRequest): Promise<str
     const one = getRequestUserTenantIdFallback(request);
     return one ? [one] : [];
   }
-  const userId = await getSupabaseUserId(request);
+  const userId = await getRequestUserId(request);
   if (!userId) return [];
   const ids = await getTenantIdsForUser(userId);
   return ids;
@@ -135,7 +135,7 @@ export async function getRequestUserTenantId(request: NextRequest): Promise<stri
   if (DEBUG_MODE && MOCK_USER_TENANT_ID) {
     return MOCK_USER_TENANT_ID;
   }
-  const userId = await getSupabaseUserId(request);
+  const userId = await getRequestUserId(request);
   if (!userId) {
     return unauthorized401();
   }

@@ -26,7 +26,8 @@ export interface JournalEntryProps {
   entityId: EntityId;
   postingDate: Date;
   sourceModule: string;
-  sourceDocumentId: UUID;
+  /** Optional; when omitted, a UUID is generated so the entity always has a valid document reference. */
+  sourceDocumentId?: UUID;
   sourceDocumentType: string;
   description: string;
   lines: JournalEntryLine[];
@@ -67,7 +68,7 @@ export class JournalEntry {
     this.entityId = props.entityId;
     this.postingDate = props.postingDate;
     this.sourceModule = props.sourceModule;
-    this.sourceDocumentId = props.sourceDocumentId;
+    this.sourceDocumentId = (props.sourceDocumentId?.trim() || crypto.randomUUID()) as UUID;
     this.sourceDocumentType = props.sourceDocumentType;
     this.description = props.description;
     this.lines = Object.freeze([...props.lines]);

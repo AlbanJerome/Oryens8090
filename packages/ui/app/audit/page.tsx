@@ -52,10 +52,8 @@ function buildDetailsString(
     accountNames.length > 0 ? accountNames.join(' and ') : affectedAccounts.join(', ') || '—';
   const dateStr = postingDate ? formatDate(postingDate) : '';
   const description = `${amountStr} affecting ${accountList}${dateStr ? `. Dated ${dateStr}` : ''}.`;
-  const prefix =
-    sourceModule === 'manual' || sourceModule === 'Manual'
-      ? 'Manual Entry'
-      : `Entry (${sourceModule})`;
+  const isManual = String(sourceModule).toLowerCase() === 'manual';
+  const prefix = isManual ? 'Manual Entry' : `Entry (${sourceModule})`;
   return `${prefix}: ${description}`;
 }
 
@@ -262,7 +260,7 @@ export default function AuditPage() {
             </Link>
             <span className="text-slate-400">|</span>
             <Link href="/" className="text-2xl font-semibold tracking-tight text-slate-900 hover:underline">
-              Oryens Ledger
+              {discovery?.parentEntityName ? `${discovery.parentEntityName} Ledger` : 'Ledger'}
             </Link>
             <span className="text-slate-500">/</span>
             <h1 className="text-xl font-semibold text-slate-800">Audit Log</h1>

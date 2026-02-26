@@ -11,6 +11,7 @@ import { getSupabaseBrowser } from '../lib/supabase-browser';
 const navItems = [
   { href: '/', label: 'Dashboard', icon: DashboardIcon },
   { href: '/', label: 'Ledger', icon: LedgerIcon },
+  { href: '/dashboard/demo', label: 'Demo', icon: DemoIcon },
   { href: '/entities', label: 'Entities', icon: EntitiesIcon },
   { href: '/audit', label: 'Audit Log', icon: AuditIcon },
   { href: '/chart-of-accounts', label: 'Chart of Accounts', icon: ChartIcon },
@@ -19,6 +20,14 @@ const navItems = [
   { href: '/settings', label: 'Settings', icon: SettingsIcon },
 ];
 
+function DemoIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
 function DashboardIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">

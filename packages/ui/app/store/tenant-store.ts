@@ -22,10 +22,12 @@ type TenantState = {
   isLoadingTenants: boolean;
   isLoadingDiscovery: boolean;
   tenantsLoaded: boolean;
+  /** Demo page only: override role so RBAC demo can show OWNER vs VIEWER. Clear when leaving demo. */
+  demoRoleOverride: TenantRole | null;
   loadUserTenants: () => Promise<void>;
-  /** Optimistic update after onboard: set the new company so UI shows app immediately without relying on GET /api/tenants. */
   setTenantFromOnboard: (tenantId: string, companyName: string) => void;
   setActiveTenantId: (tenantId: string) => void;
+  setDemoRoleOverride: (role: TenantRole | null) => void;
   loadDiscovery: (tenantId: string) => Promise<void>;
   hydrateFromCookieAndTenants: () => void;
 };
@@ -37,6 +39,9 @@ export const useTenantStore = create<TenantState>((set, get) => ({
   isLoadingTenants: false,
   isLoadingDiscovery: false,
   tenantsLoaded: false,
+  demoRoleOverride: null,
+
+  setDemoRoleOverride: (role) => set({ demoRoleOverride: role }),
 
   loadUserTenants: async () => {
     set({ isLoadingTenants: true });

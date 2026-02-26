@@ -36,8 +36,8 @@ export function validateMetadata(metadata: unknown): MetadataValidationResult {
   }
   const obj = metadata as Record<string, unknown>;
   for (const value of Object.values(obj)) {
-    if (value !== null && typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'boolean') {
-      return { valid: false, errors: ['Metadata values must be string, number, or boolean'] };
+    if (value === null || (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'boolean')) {
+      return { valid: false, errors: ['Metadata values must be string, number, or boolean (null not allowed)'] };
     }
   }
   const valid = validateSchema(obj as any);
