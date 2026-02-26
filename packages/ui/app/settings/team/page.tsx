@@ -5,12 +5,13 @@ import Link from 'next/link';
 import { useTenantStore } from '../../store/tenant-store';
 import { usePermissions } from '../../hooks/usePermissions';
 import { OryensSpinner } from '../../components/OryensSpinner';
+import { PermissionGuard } from '../../components/PermissionGuard';
 
 type TeamMember = { userId: string; email: string | null; role: 'OWNER' | 'EDITOR' | 'VIEWER' };
 
 export default function TeamPage() {
   const activeTenantId = useTenantStore((s) => s.activeTenantId);
-  const { isOwner } = usePermissions();
+  const { isOwner } = usePermissions(); // Invite button also guarded by PermissionGuard below
   const [users, setUsers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +81,7 @@ export default function TeamPage() {
           <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">Team</h1>
           <p className="mt-1 text-sm text-slate-500">Users with access to this company.</p>
         </div>
-        {isOwner && (
+        <PermissionGuard requiredRole="OWNER">
           <button
             type="button"
             onClick={() => setInviteOpen(true)}
@@ -88,7 +89,7 @@ export default function TeamPage() {
           >
             Invite User
           </button>
-        )}
+        </PermissionGuard>
       </header>
 
       {inviteOpen && (

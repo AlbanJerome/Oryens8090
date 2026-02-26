@@ -8,6 +8,7 @@ import { AccountDrillDown } from './components/AccountDrillDown';
 import { DashboardAlerts } from './components/DashboardAlerts';
 import { LoadingSkeleton } from './components/LoadingSkeleton';
 import { usePermissions } from './hooks/usePermissions';
+import { PermissionGuard } from './components/PermissionGuard';
 import { useLocale } from './context/LocaleContext';
 import { useTenantStore } from './store/tenant-store';
 
@@ -346,7 +347,7 @@ function DashboardContent({
   setLedgerHealth: (h: { exceptions: { type: string; entryId: string; lineId?: string; accountCode?: string; reason: string; humanReadable: string }[]; closeReadinessScore: number } | null) => void;
 }) {
   const { formatCurrency, formatDate, formatDateMedium } = useLocale();
-  const { canPost } = usePermissions();
+  const { canPost } = usePermissions(); // used for conditional UI; PermissionGuard enforces button-level ACL
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -459,32 +460,34 @@ function DashboardContent({
             )
           )}
           <div className="ml-auto flex items-center gap-2">
-            {canPost && discovery && (
-              <button
-                type="button"
-                onClick={async () => {
-                  setRevalueLoading(true);
-                  setRevalueResult(null);
-                  try {
-                    const res = await fetch(`/api/tenants/${encodeURIComponent(discovery.tenantId)}/revalue`);
-                    const data = await res.json().catch(() => ({}));
-                    if (res.ok && data.insight != null) {
-                      setRevalueResult({
-                        insight: data.insight,
-                        totalUnrealizedGainLossCents: data.totalUnrealizedGainLossCents ?? 0,
-                      });
+            <PermissionGuard requiredRole="EDITOR">
+              {discovery && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setRevalueLoading(true);
+                    setRevalueResult(null);
+                    try {
+                      const res = await fetch(`/api/tenants/${encodeURIComponent(discovery.tenantId)}/revalue`);
+                      const data = await res.json().catch(() => ({}));
+                      if (res.ok && data.insight != null) {
+                        setRevalueResult({
+                          insight: data.insight,
+                          totalUnrealizedGainLossCents: data.totalUnrealizedGainLossCents ?? 0,
+                        });
+                      }
+                    } finally {
+                      setRevalueLoading(false);
                     }
-                  } finally {
-                    setRevalueLoading(false);
-                  }
-                }}
-                disabled={revalueLoading}
-                className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
-              >
-                {revalueLoading ? 'Revaluing…' : 'Revalue'}
-              </button>
-            )}
-            {canPost && (
+                  }}
+                  disabled={revalueLoading}
+                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
+                >
+                  {revalueLoading ? 'Revaluing…' : 'Revalue'}
+                </button>
+              )}
+            </PermissionGuard>
+            <PermissionGuard requiredRole="EDITOR">
               <button
                 type="button"
                 onClick={() => setNewEntryOpen(true)}
@@ -492,7 +495,7 @@ function DashboardContent({
               >
                 New Entry
               </button>
-            )}
+            </PermissionGuard>
           </div>
         </header>
 
