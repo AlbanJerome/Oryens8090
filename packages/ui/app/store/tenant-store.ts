@@ -23,6 +23,8 @@ type TenantState = {
   isLoadingDiscovery: boolean;
   tenantsLoaded: boolean;
   loadUserTenants: () => Promise<void>;
+  /** Optimistic update after onboard: set the new company so UI shows app immediately without relying on GET /api/tenants. */
+  setTenantFromOnboard: (tenantId: string, companyName: string) => void;
   setActiveTenantId: (tenantId: string) => void;
   loadDiscovery: (tenantId: string) => Promise<void>;
   hydrateFromCookieAndTenants: () => void;
@@ -39,7 +41,7 @@ export const useTenantStore = create<TenantState>((set, get) => ({
   loadUserTenants: async () => {
     set({ isLoadingTenants: true });
     try {
-      const res = await fetch('/api/tenants');
+      const res = await fetch('/api/tenants', { cache: 'no-store', credentials: 'include' });
       const data = (await res.ok ? res.json() : { tenants: [] }) as { tenants?: TenantOption[] };
       const list = (data.tenants ?? []).map((t) => ({ ...t, role: t.role ?? 'VIEWER' as TenantRole }));
       const singleTenantId = list.length === 1 ? list[0].tenantId : null;
@@ -67,6 +69,18 @@ export const useTenantStore = create<TenantState>((set, get) => ({
     }
   },
 
+  setTenantFromOnboard: (tenantId: string, companyName: string) => {
+    const option: TenantOption = { tenantId, name: companyName, role: 'OWNER' };
+    setActiveTenantIdCookie(tenantId);
+    set({
+      userTenants: [option],
+      tenantsLoaded: true,
+      activeTenantId: tenantId,
+      discovery: null,
+    });
+    get().loadDiscovery(tenantId);
+  },
+
   setActiveTenantId: (tenantId: string) => {
     setActiveTenantIdCookie(tenantId);
     set({ activeTenantId: tenantId, discovery: null });
@@ -76,7 +90,7 @@ export const useTenantStore = create<TenantState>((set, get) => ({
   loadDiscovery: async (tenantId: string) => {
     set({ isLoadingDiscovery: true });
     try {
-      const res = await fetch(`/api/discovery?tenantId=${encodeURIComponent(tenantId)}`);
+      const res = await fetch(`/api/discovery?tenantId=${encodeURIComponent(tenantId)}`, { cache: 'no-store', credentials: 'include' });
       const data = res.ok ? (await res.json()) : null;
       if (data?.tenantId) {
         set({
