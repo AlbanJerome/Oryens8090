@@ -47,7 +47,7 @@ export async function GET(
       const today = toLocalDateString(new Date());
       const now = new Date();
       const recentStart = toLocalDateString(new Date(now.getFullYear(), now.getMonth(), 1));
-      const recentEnd = toLocalDateString(new Date(now.getFullYear() + 1, 11, 31));
+      const recentEnd = toLocalDateString(new Date(now.getFullYear(), now.getMonth() + 1, 0));
       const fallbackId = '00000000-0000-0000-0000-000000000001';
       const recentFallback: AccountingPeriodItem = {
         id: fallbackId,

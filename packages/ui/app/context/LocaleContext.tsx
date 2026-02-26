@@ -55,7 +55,10 @@ export function LocaleProvider({
     let cancelled = false;
     setIsLoading(true);
     fetch(`/api/tenants/${encodeURIComponent(tenantId)}/settings`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`Settings failed: ${r.status}`);
+        return r.json();
+      })
       .then((data: { locale?: string; currencyCode?: string }) => {
         if (cancelled) return;
         setLocale(data.locale ?? defaultLocale);

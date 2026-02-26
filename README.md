@@ -26,8 +26,17 @@ See [scripts/setup-db.ts](scripts/setup-db.ts) and [docs/OPERATIONS.md](docs/OPE
 
 ## Tests
 
+- **Unit tests:** `npm test` (runs Vitest in all workspaces; core has 12 tests).
+- **Integration tests:** `npm run test:integration` — runs audit-link and consolidation verification. Requires `DATABASE_URL` (PostgreSQL). Schema must be applied first (see Database setup).
+- **Full tests (unit + integration):** `npm run test:full` — runs unit tests then integration tests. Set `DATABASE_URL` when you want integration checks.
+- **E2E:** `npm run test:e2e` — Playwright; start the app (e.g. `npm run dev`) and use `PLAYWRIGHT_BASE_URL` if needed.
+
 ```bash
-npx vitest run packages/core/src
+# Unit only
+npm test
+
+# Unit + integration (with DB)
+DATABASE_URL=postgres://... npm run test:full
 ```
 
 ## Repo structure

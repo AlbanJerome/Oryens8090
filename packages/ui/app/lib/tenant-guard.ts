@@ -157,7 +157,12 @@ export async function assertUserCanAccessTenant(
 ): Promise<NextResponse | null> {
   if (DEBUG_MODE) return null;
   const userTenantIds = await getRequestUserTenantIds(request);
-  if (userTenantIds.length === 0) return null;
+  if (userTenantIds.length === 0) {
+    return NextResponse.json(
+      { error: 'Forbidden: you do not have access to any tenant.' },
+      { status: 403 }
+    );
+  }
   if (userTenantIds.includes(requestTenantId)) return null;
   return NextResponse.json(
     { error: 'Forbidden: you do not have access to this tenant.' },

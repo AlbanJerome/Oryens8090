@@ -1,11 +1,13 @@
 /**
- * WO-GL-014: Verification script for Who-What-When audit link.
- * Creates a journal entry via the handler, then verifies that audit_log.entity_id
+ * WO-GL-014: Verification script for Who-What-When audit link (Sentinel).
+ * Creates a journal entry via the public handler, then verifies that audit_log.entity_id
  * matches the journal entry id and payload is valid JSON.
  *
- * Run: DATABASE_URL=postgres://... npx tsx scripts/verify-audit-link.ts
- * Prerequisite: Schema applied (npx tsx scripts/setup-db.ts "$DATABASE_URL")
+ * Run from repo root: DATABASE_URL=postgres://... npx tsx tests/integration/verify-audit-link.ts
+ * Prerequisite: Schema applied (e.g. npx tsx scripts/setup-db.ts "$DATABASE_URL")
  */
+
+import type { JournalEntry, AuditLogEntry } from '@oryens/core';
 
 async function main(): Promise<void> {
   const dbUrl = process.env.DATABASE_URL;
@@ -30,9 +32,8 @@ async function main(): Promise<void> {
       CreateJournalEntryCommandHandler,
       JournalEntryService,
       IdempotencyService,
-      AuditLoggerService
-    } = await import('../packages/core/src/application/index.js');
-    const { TemporalBalanceService } = await import('../packages/core/src/domain/index.js');
+      AuditLoggerService,
+    } = await import('@oryens/core');
 
     const journalEntryRepo = createJournalEntryRepo(client);
     const auditLogRepo = createAuditLogRepo(client);
@@ -40,9 +41,9 @@ async function main(): Promise<void> {
     const periodRepo = createPeriodRepo(tenantId);
     const idempotencyRepo = { findByKey: async () => null, save: async () => {} };
     const eventBus = { publish: async () => {} };
-    const temporalBalanceService = { applyJournalEntry: async () => {} } as unknown as InstanceType<
-      typeof TemporalBalanceService
-    >;
+    const applyJournalEntry: { applyJournalEntry: () => Promise<void> } = {
+      applyJournalEntry: async () => {},
+    };
     const journalEntryService = new JournalEntryService(periodRepo);
     const auditLogger = new AuditLoggerService(auditLogRepo);
 
@@ -50,7 +51,7 @@ async function main(): Promise<void> {
       journalEntryRepo,
       accountRepo,
       periodRepo,
-      temporalBalanceService,
+      applyJournalEntry,
       eventBus,
       new IdempotencyService(idempotencyRepo),
       journalEntryService,
@@ -68,9 +69,9 @@ async function main(): Promise<void> {
       currency: 'USD' as const,
       lines: [
         { accountCode: '1000-CASH', debitAmountCents: 10000, creditAmountCents: 0 },
-        { accountCode: '4000-REV', debitAmountCents: 0, creditAmountCents: 10000 }
+        { accountCode: '4000-REV', debitAmountCents: 0, creditAmountCents: 10000 },
       ],
-      createdBy: userId
+      createdBy: userId,
     };
 
     const result = await handler.handle(command);
@@ -113,7 +114,12 @@ async function main(): Promise<void> {
     }
 
     if (!uuidMatch) {
-      console.error('FAIL: UUID mismatch. journal_entries.id:', journalFound.id, 'audit_log.entity_id:', auditFound.entity_id);
+      console.error(
+        'FAIL: UUID mismatch. journal_entries.id:',
+        journalFound.id,
+        'audit_log.entity_id:',
+        auditFound.entity_id
+      );
       process.exit(1);
     }
     if (!payloadValid) {
@@ -121,7 +127,12 @@ async function main(): Promise<void> {
       process.exit(1);
     }
     if (!payloadHasTenantAndUser) {
-      console.error('FAIL: Payload must include tenantId and userId. tenantId:', tenantId, 'userId:', userId);
+      console.error(
+        'FAIL: Payload must include tenantId and userId. tenantId:',
+        tenantId,
+        'userId:',
+        userId
+      );
       process.exit(1);
     }
 
@@ -135,7 +146,7 @@ async function main(): Promise<void> {
 
 function createJournalEntryRepo(client: import('pg').Client) {
   return {
-    save: async (entry: import('../packages/core/src/domain/entities/journal-entry.js').JournalEntry) => {
+    save: async (entry: JournalEntry) => {
       await client.query(
         `INSERT INTO journal_entries (id, tenant_id, entity_id, posting_date, source_module, source_document_id, source_document_type, description, is_intercompany, valid_time_start, version)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
@@ -150,7 +161,7 @@ function createJournalEntryRepo(client: import('pg').Client) {
           entry.description,
           entry.isIntercompany,
           entry.validTimeStart,
-          entry.version
+          entry.version,
         ]
       );
       for (const line of entry.lines) {
@@ -163,7 +174,7 @@ function createJournalEntryRepo(client: import('pg').Client) {
             line.accountCode,
             line.debitAmount.toCents(),
             line.creditAmount.toCents(),
-            line.description ?? null
+            line.description ?? null,
           ]
         );
       }
@@ -171,13 +182,13 @@ function createJournalEntryRepo(client: import('pg').Client) {
     findById: async (id: string) => null,
     findByIdempotencyKey: async () => null,
     findIntercompanyTransactions: async () => [],
-    getTrialBalanceData: async () => []
+    getTrialBalanceData: async () => [],
   };
 }
 
 function createAuditLogRepo(client: import('pg').Client) {
   return {
-    append: async (entry: import('../packages/core/src/application/services/audit-logger.service.js').AuditLogEntry) => {
+    append: async (entry: AuditLogEntry) => {
       await client.query(
         `INSERT INTO audit_log (tenant_id, user_id, action, entity_type, entity_id, payload)
          VALUES ($1, $2, $3, $4, $5, $6::jsonb)`,
@@ -187,23 +198,43 @@ function createAuditLogRepo(client: import('pg').Client) {
           entry.action,
           entry.entityType ?? null,
           entry.entityId ?? null,
-          JSON.stringify(entry.payload)
+          JSON.stringify(entry.payload),
         ]
       );
-    }
+    },
   };
 }
 
 function createAccountRepo(tenantId: string, systemUserId: string) {
   const accounts = [
-    { tenantId, code: '1000-CASH', name: 'Cash', accountType: 'Asset' as const, normalBalance: 'Debit' as const, createdBy: systemUserId, isSystemControlled: false, allowsIntercompany: false, externalMapping: {} },
-    { tenantId, code: '4000-REV', name: 'Revenue', accountType: 'Revenue' as const, normalBalance: 'Credit' as const, createdBy: systemUserId, isSystemControlled: false, allowsIntercompany: false, externalMapping: {} }
+    {
+      tenantId,
+      code: '1000-CASH',
+      name: 'Cash',
+      accountType: 'Asset' as const,
+      normalBalance: 'Debit' as const,
+      createdBy: systemUserId,
+      isSystemControlled: false,
+      allowsIntercompany: false,
+      externalMapping: {},
+    },
+    {
+      tenantId,
+      code: '4000-REV',
+      name: 'Revenue',
+      accountType: 'Revenue' as const,
+      normalBalance: 'Credit' as const,
+      createdBy: systemUserId,
+      isSystemControlled: false,
+      allowsIntercompany: false,
+      externalMapping: {},
+    },
   ];
   return {
     findById: async () => null,
     findByCode: async () => null,
     findByCodes: async (_t: string, codes: string[]) =>
-      accounts.filter((a) => codes.includes(a.code))
+      accounts.filter((a) => codes.includes(a.code)),
   };
 }
 
@@ -218,13 +249,17 @@ function createPeriodRepo(tenantId: string) {
         name: '2025-02',
         startDate: new Date('2025-02-01'),
         endDate: new Date('2025-02-28'),
-        status: 'OPEN'
-      }
-    })
+        status: 'OPEN',
+      },
+    }),
   };
 }
 
-async function seedMinimalData(client: import('pg').Client, tenantId: string, systemUserId: string): Promise<void> {
+async function seedMinimalData(
+  client: import('pg').Client,
+  tenantId: string,
+  systemUserId: string
+): Promise<void> {
   const accountIds = [crypto.randomUUID(), crypto.randomUUID()];
   await client.query(
     `INSERT INTO accounts (id, tenant_id, code, name, account_type, normal_balance, created_by)

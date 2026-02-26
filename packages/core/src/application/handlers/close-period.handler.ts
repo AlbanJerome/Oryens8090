@@ -49,6 +49,7 @@ export class ClosePeriodCommandHandler {
         entityType: 'JournalEntry',
         entityId: closingEntry.id,
         payload: {
+          description: 'System Closing Entry',
           closingEntryId: closingEntry.id,
           entityId: command.entityId,
           periodEndDate: command.periodEndDate.toISOString(),

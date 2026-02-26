@@ -7,6 +7,8 @@ export type AccountListItem = {
   code: string;
   name: string;
   accountType: string;
+  departmentId?: string | null;
+  departmentName?: string | null;
 };
 
 export async function GET(
@@ -27,18 +29,22 @@ export async function GET(
 
     try {
       const res = await client.query(
-        `SELECT id, code, name, account_type
-         FROM accounts
-         WHERE tenant_id = $1 AND deleted_at IS NULL
-         ORDER BY code`,
+        `SELECT a.id, a.code, a.name, a.account_type,
+                a.department_id, d.name AS department_name
+         FROM accounts a
+         LEFT JOIN departments d ON d.id = a.department_id AND d.tenant_id = a.tenant_id
+         WHERE a.tenant_id = $1 AND a.deleted_at IS NULL
+         ORDER BY a.code`,
         [tenantId]
       );
 
-      const accounts: AccountListItem[] = (res.rows as PgAccountRow[]).map((r) => ({
+      const accounts: AccountListItem[] = (res.rows as (PgAccountRow & { department_id?: string | null; department_name?: string | null })[]).map((r) => ({
         id: r.id,
         code: r.code,
         name: r.name,
         accountType: r.account_type ?? '',
+        departmentId: r.department_id ?? null,
+        departmentName: r.department_name ?? null,
       }));
 
       return NextResponse.json({ accounts });

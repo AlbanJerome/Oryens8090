@@ -121,6 +121,35 @@ const DDL_STATEMENTS: string[] = [
   );`,
   `CREATE INDEX IF NOT EXISTS idx_entities_tenant_parent ON entities(tenant_id, parent_entity_id);`,
 
+  `-- Departments for departmental tagging (accounts can be tagged with department_id)
+  CREATE TABLE IF NOT EXISTS departments (
+    id UUID PRIMARY KEY,
+    tenant_id UUID NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    code VARCHAR(64),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  );`,
+  `CREATE INDEX IF NOT EXISTS idx_departments_tenant ON departments(tenant_id);`,
+
+  `-- Add department_id to accounts if not present (idempotent)
+  DO $$ BEGIN
+    ALTER TABLE accounts ADD COLUMN department_id UUID;
+  EXCEPTION WHEN duplicate_column THEN NULL;
+  END $$;`,
+
+  `-- Automated reversal rules (template + schedule; run creates reversal JE)
+  CREATE TABLE IF NOT EXISTS reversal_rules (
+    id UUID PRIMARY KEY,
+    tenant_id UUID NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    schedule_type VARCHAR(32) NOT NULL DEFAULT 'MANUAL',
+    template JSONB NOT NULL DEFAULT '{"lines":[]}',
+    last_run_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  );`,
+  `CREATE INDEX IF NOT EXISTS idx_reversal_rules_tenant ON reversal_rules(tenant_id);`,
+
   `-- WO-GL-014: Audit log (append-only; trigger prevents UPDATE/DELETE)
   CREATE TABLE IF NOT EXISTS audit_log (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
