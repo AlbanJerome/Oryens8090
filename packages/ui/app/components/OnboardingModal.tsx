@@ -9,7 +9,7 @@ export function OnboardingModal({ onClose }: OnboardingModalProps) {
   const [companyName, setCompanyName] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const loadUserTenants = useTenantStore((s) => s.loadUserTenants);
+  const setTenantFromOnboard = useTenantStore((s) => s.setTenantFromOnboard);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -28,7 +28,11 @@ export function OnboardingModal({ onClose }: OnboardingModalProps) {
         setError(data.error || 'Failed to create company');
         return;
       }
-      await loadUserTenants();
+      // Optimistic update so UI shows the app immediately; avoids GET /api/tenants overwriting with empty
+      const tenantId = data.tenantId ?? data.tenant_id;
+      const company = data.companyName ?? name;
+      if (tenantId) setTenantFromOnboard(tenantId, company);
+      onClose?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {

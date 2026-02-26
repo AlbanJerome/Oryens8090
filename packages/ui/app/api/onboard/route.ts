@@ -53,10 +53,10 @@ export async function POST(request: NextRequest) {
     await client.connect();
     try {
       await client.query('BEGIN');
-      // tenants table (001): id TEXT
+      // tenants table: id, name (NOT NULL), currency_code, locale
       await client.query(
-        `INSERT INTO tenants (id, currency_code, locale) VALUES ($1, 'USD', 'en-US') ON CONFLICT (id) DO NOTHING`,
-        [tenantId]
+        `INSERT INTO tenants (id, name, currency_code, locale) VALUES ($1, $2, 'USD', 'en-US') ON CONFLICT (id) DO NOTHING`,
+        [tenantId, companyName]
       );
       // entities: id UUID, tenant_id UUID, root has parent_entity_id NULL
       await client.query(
