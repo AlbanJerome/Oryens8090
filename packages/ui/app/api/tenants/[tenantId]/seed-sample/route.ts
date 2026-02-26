@@ -1,5 +1,10 @@
+/**
+ * POST /api/tenants/[tenantId]/seed-sample
+ * Creates sample journal entries for testing. Requires at least one entity and two accounts.
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
-import { assertUserCanAccessTenant, getRequestUserId, getRequestUserTenantRows } from '@/app/lib/tenant-guard';
+import { assertUserCanAccessTenant, getRequestUserTenantRows } from '@/app/lib/tenant-guard';
 import {
   CreateJournalEntryCommandHandler,
   CreateJournalEntryCommandValidator,
@@ -11,13 +16,11 @@ import {
   PeriodClosedError,
   JournalEntryError,
   type PgClient,
-  type AuditLogEntry,
   type IApplyJournalEntry,
 } from '@oryens/core';
 import { toLocalDateString } from '@/app/lib/date-utils';
 import type { PgAccountRow } from '@/app/types/database.extension';
 
-/** Shape used by repo save(); avoids InstanceType on class with private constructor. */
 interface JournalEntryLineLike {
   id: string;
   entryId: string;
@@ -171,7 +174,7 @@ function createPeriodRepo(client: PgClient, tenantId: string) {
 
 function createAuditLogRepo(client: PgClient) {
   return {
-    append: async (entry: AuditLogEntry) => {
+    append: async (entry: { tenantId: string; userId?: string; action: string; entityType?: string | null; entityId?: string | null; payload?: unknown }) => {
       await client.query(
         `INSERT INTO audit_log (tenant_id, user_id, action, entity_type, entity_id, payload)
          VALUES ($1, $2, $3, $4, $5, $6::jsonb)`,
@@ -188,6 +191,14 @@ function createAuditLogRepo(client: PgClient) {
   };
 }
 
+const SAMPLE_ENTRIES: Array<{ description: string; debitCents: number; creditCents: number }> = [
+  { description: 'Sample: Office supplies', debitCents: 15000, creditCents: 15000 },
+  { description: 'Sample: Rent payment', debitCents: 500000, creditCents: 500000 },
+  { description: 'Sample: Client invoice payment', debitCents: 200000, creditCents: 200000 },
+  { description: 'Sample: Loan drawdown', debitCents: 1000000, creditCents: 1000000 },
+  { description: 'Sample: Payroll', debitCents: 80000, creditCents: 80000 },
+];
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ tenantId: string }> }
@@ -199,71 +210,9 @@ export async function POST(
   const role = userRows.find((r) => r.tenantId === tenantId)?.role ?? 'VIEWER';
   if (role === 'VIEWER') {
     return NextResponse.json(
-      { error: 'Forbidden: only EDITOR or OWNER can create journal entries.' },
+      { error: 'Forbidden: only EDITOR or OWNER can populate sample data.' },
       { status: 403 }
     );
-  }
-  let body: {
-    entityId: string;
-    postingDate: string;
-    description: string;
-    sourceDocumentId?: string;
-    sourceModule?: 'MANUAL' | 'AI_REVIEW';
-    lines: Array<{
-      accountCode: string;
-      debitAmountCents: number;
-      creditAmountCents: number;
-      description?: string;
-      metadata?: Record<string, string | number | boolean>;
-      transactionAmountCents?: number;
-      transactionCurrencyCode?: string;
-      exchangeRate?: number;
-    }>;
-    createdBy?: string;
-    metadata?: Record<string, string | number | boolean>;
-  };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
-  }
-  const { entityId, postingDate, description, lines, createdBy, metadata } = body;
-  if (!entityId || !postingDate || !description || !lines || !Array.isArray(lines) || lines.length < 2) {
-    return NextResponse.json(
-      { error: 'entityId, postingDate, description, and at least 2 lines are required' },
-      { status: 400 }
-    );
-  }
-
-  const sourceModule = body.sourceModule === 'AI_REVIEW' ? 'AI_REVIEW' : 'MANUAL';
-  const command = {
-    tenantId,
-    entityId,
-    postingDate: new Date(postingDate),
-    sourceModule,
-    sourceDocumentId: (body.sourceDocumentId != null && String(body.sourceDocumentId).trim() !== '')
-      ? String(body.sourceDocumentId).trim()
-      : crypto.randomUUID(),
-    sourceDocumentType: 'JOURNAL',
-    description: description.trim(),
-    currency: 'USD' as const,
-    lines: lines.map((l) => ({
-      accountCode: String(l.accountCode).trim(),
-      debitAmountCents: Number(l.debitAmountCents) || 0,
-      creditAmountCents: Number(l.creditAmountCents) || 0,
-      description: l.description?.trim(),
-      metadata: l.metadata && typeof l.metadata === 'object' ? l.metadata : undefined,
-      transactionAmountCents: l.transactionAmountCents != null ? Number(l.transactionAmountCents) : undefined,
-      transactionCurrencyCode: l.transactionCurrencyCode?.trim() || undefined,
-      exchangeRate: l.exchangeRate != null ? Number(l.exchangeRate) : undefined,
-    })),
-    createdBy: createdBy?.trim() || undefined,
-    metadata: metadata && typeof metadata === 'object' ? metadata : undefined,
-  };
-
-  const validation = CreateJournalEntryCommandValidator.validate(command);
-  if (!validation.isValid) {
-    return NextResponse.json({ error: validation.errors.join('; '), errors: validation.errors }, { status: 400 });
   }
 
   try {
@@ -275,6 +224,56 @@ export async function POST(
     await client.connect();
 
     try {
+      const entitiesRes = await client.query(
+        `SELECT id FROM entities WHERE tenant_id = $1 ORDER BY (parent_entity_id IS NULL) DESC, name LIMIT 1`,
+        [tenantId]
+      );
+      const entityId = (entitiesRes.rows[0] as { id?: string } | undefined)?.id;
+      if (!entityId) {
+        return NextResponse.json(
+          { error: 'No entity found. Create an entity first (e.g. from the Entities page).' },
+          { status: 400 }
+        );
+      }
+
+      const accountsRes = await client.query(
+        `SELECT id, code, account_type FROM accounts WHERE tenant_id = $1 AND deleted_at IS NULL ORDER BY code`,
+        [tenantId]
+      );
+      const accounts = accountsRes.rows as unknown as { id: string; code: string; account_type: string }[];
+      if (accounts.length < 2) {
+        return NextResponse.json(
+          { error: 'At least two accounts are required. Add accounts in Chart of Accounts first.' },
+          { status: 400 }
+        );
+      }
+
+      const now = new Date();
+      const todayStr = toLocalDateString(now);
+      const periodRes = await client.query(
+        `SELECT id, start_date, end_date, status FROM accounting_periods WHERE tenant_id = $1 AND $2::date >= start_date AND $2::date <= end_date AND status = 'OPEN' ORDER BY end_date DESC LIMIT 1`,
+        [tenantId, todayStr]
+      );
+      let postingDateStr = todayStr;
+      if (periodRes.rows.length === 0) {
+        const recentStart = toLocalDateString(new Date(now.getFullYear(), now.getMonth(), 1));
+        const recentEnd = toLocalDateString(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+        const fallbackId = '00000000-0000-0000-0000-000000000001';
+        await client.query(
+          `INSERT INTO accounting_periods (id, tenant_id, name, start_date, end_date, status)
+           VALUES ($1, $2, $3, $4::date, $5::date, 'OPEN')
+           ON CONFLICT (tenant_id, name) DO UPDATE SET start_date = $4::date, end_date = $5::date`,
+          [fallbackId, tenantId, 'Current (fallback)', recentStart, recentEnd]
+        );
+      }
+
+      const assetCodes = accounts.filter((a) => (a.account_type || '').toLowerCase() === 'asset').map((a) => a.code);
+      const expenseCodes = accounts.filter((a) => (a.account_type || '').toLowerCase() === 'expense').map((a) => a.code);
+      const revenueCodes = accounts.filter((a) => (a.account_type || '').toLowerCase() === 'revenue').map((a) => a.code);
+      const liabilityCodes = accounts.filter((a) => (a.account_type || '').toLowerCase() === 'liability').map((a) => a.code);
+      const codeA = assetCodes[0] ?? accounts[0].code;
+      const codeB = expenseCodes[0] ?? revenueCodes[0] ?? liabilityCodes[0] ?? accounts[1].code;
+
       const journalEntryRepo = createJournalEntryRepo(client);
       const accountRepo = createAccountRepo(client, tenantId);
       const periodRepo = createPeriodRepo(client, tenantId);
@@ -284,7 +283,6 @@ export async function POST(
       const temporalBalanceService: IApplyJournalEntry = { applyJournalEntry: async () => {} };
       const journalEntryService = new JournalEntryService(periodRepo);
       const auditLogger = new AuditLoggerService(auditLogRepo);
-
       const handler = new CreateJournalEntryCommandHandler(
         journalEntryRepo,
         accountRepo,
@@ -296,36 +294,49 @@ export async function POST(
         auditLogger
       );
 
-      const result = await handler.handle(command);
-      if (sourceModule === 'AI_REVIEW' && result.isSuccess && result.journalEntryId) {
-        const userId = await getRequestUserId(request);
-        await auditLogRepo.append({
+      const journalEntryIds: string[] = [];
+      for (let i = 0; i < SAMPLE_ENTRIES.length; i++) {
+        const sample = SAMPLE_ENTRIES[i];
+        const debitCode = i % 2 === 0 ? codeB : codeA;
+        const creditCode = i % 2 === 0 ? codeA : codeB;
+        const command = {
           tenantId,
-          userId: userId ?? undefined,
-          action: 'AI_GENERATED_HUMAN_APPROVED',
-          entityType: 'JournalEntry',
-          entityId: result.journalEntryId,
-          payload: { journalEntryId: result.journalEntryId, entityId, description: description.trim() },
-        });
+          entityId,
+          postingDate: new Date(postingDateStr),
+          sourceModule: 'MANUAL' as const,
+          sourceDocumentId: `seed-sample-${i + 1}-${crypto.randomUUID()}`,
+          sourceDocumentType: 'JOURNAL',
+          description: sample.description,
+          currency: 'USD' as const,
+          lines: [
+            { accountCode: debitCode, debitAmountCents: sample.debitCents, creditAmountCents: 0 },
+            { accountCode: creditCode, debitAmountCents: 0, creditAmountCents: sample.creditCents },
+          ],
+        };
+        const validation = CreateJournalEntryCommandValidator.validate(command);
+        if (!validation.isValid) continue;
+        const result = await handler.handle(command);
+        if (result.isSuccess && result.journalEntryId) journalEntryIds.push(result.journalEntryId);
       }
+
       return NextResponse.json({
-        journalEntryId: result.journalEntryId,
-        isSuccess: result.isSuccess,
-        wasIdempotent: result.wasIdempotent,
-        affectedAccounts: result.affectedAccounts,
-        totalAmountCents: result.totalAmountCents,
+        created: journalEntryIds.length,
+        journalEntryIds,
+        message: `Created ${journalEntryIds.length} sample journal entries.`,
       });
     } finally {
       await client.end();
     }
   } catch (error: unknown) {
-    console.error('Journal entry API error:', error);
+    console.error('Seed sample API error:', error);
     const message = error instanceof Error ? error.message : 'Internal server error';
     const isClientError =
       error instanceof AccountNotFoundError ||
       error instanceof PeriodClosedError ||
-      (error instanceof JournalEntryError && error.code === 'NO_PERIOD_FOUND');
-    const status = isClientError ? 400 : 500;
-    return NextResponse.json({ error: message }, { status });
+      (error instanceof JournalEntryError && (error as { code?: string }).code === 'NO_PERIOD_FOUND');
+    return NextResponse.json(
+      { error: message },
+      { status: isClientError ? 400 : 500 }
+    );
   }
 }

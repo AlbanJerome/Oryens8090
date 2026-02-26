@@ -45,7 +45,7 @@ export async function GET(
         [tenantId, limit, offset]
       );
 
-      const rows: AuditLogRow[] = (res.rows as PgAuditLogRow[]).map((r) => ({
+      const rows: AuditLogRow[] = (res.rows as unknown as PgAuditLogRow[]).map((r) => ({
         id: r.id,
         tenantId: r.tenant_id,
         userId: r.user_id ?? null,

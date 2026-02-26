@@ -111,7 +111,7 @@ function createAccountRepo(client: PgClient, tenantId: string) {
         [tenantId, accountId]
       );
       const r = res.rows[0];
-      return r ? rowToAccount(r as PgAccountRow) : null;
+      return r ? rowToAccount(r as unknown as PgAccountRow) : null;
     },
     findByCode: async (_t: string, accountCode: string) => {
       const res = await client.query(
@@ -119,7 +119,7 @@ function createAccountRepo(client: PgClient, tenantId: string) {
         [tenantId, accountCode]
       );
       const r = res.rows[0];
-      return r ? rowToAccount(r as PgAccountRow) : null;
+      return r ? rowToAccount(r as unknown as PgAccountRow) : null;
     },
     findByCodes: async (_t: string, codes: string[]) => {
       if (codes.length === 0) return [];
@@ -127,7 +127,7 @@ function createAccountRepo(client: PgClient, tenantId: string) {
         `SELECT id, tenant_id, code, name, account_type, normal_balance, created_by FROM accounts WHERE tenant_id = $1 AND code = ANY($2) AND deleted_at IS NULL`,
         [tenantId, codes]
       );
-      return (res.rows as PgAccountRow[]).map(rowToAccount);
+      return (res.rows as unknown as PgAccountRow[]).map(rowToAccount);
     },
   };
 }
@@ -231,14 +231,14 @@ export async function POST(
     await client.connect();
 
     try {
-      const ruleRes = await client.query<{ name: string; template: unknown }>(
+      const ruleRes = await client.query(
         'SELECT name, template FROM reversal_rules WHERE tenant_id = $1 AND id = $2',
         [tenantId, ruleId]
       );
       if (ruleRes.rows.length === 0) {
         return NextResponse.json({ error: 'Reversal rule not found' }, { status: 404 });
       }
-      const rule = ruleRes.rows[0];
+      const rule = ruleRes.rows[0] as unknown as { name: string; template: unknown };
       const template = rule.template as { lines?: Array<{ accountCode: string; debitCents: number; creditCents: number }> } | null;
       const lines = Array.isArray(template?.lines) ? template.lines : [];
       if (lines.length < 2) {

@@ -36,7 +36,7 @@ export async function GET(
         [tenantId]
       );
 
-      let periods: AccountingPeriodItem[] = (res.rows as PgAccountingPeriodRow[]).map((r) => ({
+      let periods: AccountingPeriodItem[] = (res.rows as unknown as PgAccountingPeriodRow[]).map((r) => ({
         id: r.id,
         name: r.name,
         startDate: r.start_date instanceof Date ? toLocalDateString(r.start_date) : String(r.start_date),

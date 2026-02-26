@@ -81,7 +81,7 @@ export async function GET(
         ORDER BY je.posting_date ASC, je.id ASC, jel.id ASC`;
       const res = await client.query(query, [tenantId, accountCode.trim(), ...entityIds]);
 
-      const lines: JournalLineRow[] = (res.rows as PgJournalLineResultRow[]).map((r) => ({
+      const lines: JournalLineRow[] = (res.rows as unknown as PgJournalLineResultRow[]).map((r) => ({
         id: r.id,
         entryId: r.entry_id,
         postingDate: r.posting_date instanceof Date ? toLocalDateString(r.posting_date) : String(r.posting_date),
