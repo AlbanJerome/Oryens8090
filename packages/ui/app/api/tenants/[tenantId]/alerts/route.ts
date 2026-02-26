@@ -65,7 +65,7 @@ export async function GET(
            AND (je.source_document_id IS NULL OR TRIM(je.source_document_id) = '')`,
         [tenantId, ...entityIds]
       );
-      for (const r of missingDocRes.rows as { id: string; posting_date: string; description: string | null; entity_id: string }[]) {
+      for (const r of missingDocRes.rows as { id: string; posting_date: string; description: string | null; entity_id: string; source_document_id: string | null }[]) {
         alerts.push({
           id: `missing-${r.id}`,
           type: 'missing_source_document',

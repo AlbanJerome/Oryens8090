@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useLocale } from '../context/LocaleContext';
+import { OryensSpinner } from './OryensSpinner';
 
 type AlertItem = {
   id: string;
@@ -74,8 +75,9 @@ export function DashboardAlerts({ tenantId, parentEntityId }: { tenantId: string
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-slate-200/80 bg-white/95 p-8 text-center text-slate-500">
-        Loading AI alerts…
+      <div className="flex flex-col items-center gap-3 rounded-xl border border-slate-200/80 bg-white/95 p-8 text-slate-500" aria-label="Loading">
+        <OryensSpinner className="oryens-spinner" />
+        <span className="text-sm">Loading AI alerts…</span>
       </div>
     );
   }

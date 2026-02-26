@@ -4,14 +4,18 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { GlobalSearch } from './GlobalSearch';
+import { OryensLogo } from './brand/OryensLogo';
 import { useTenantStore } from '../store/tenant-store';
-
-const MOCK_USER_NAME = 'Alex Morgan';
+import { getSupabaseBrowser } from '../lib/supabase-browser';
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: DashboardIcon },
+  { href: '/', label: 'Ledger', icon: LedgerIcon },
+  { href: '/entities', label: 'Entities', icon: EntitiesIcon },
   { href: '/audit', label: 'Audit Log', icon: AuditIcon },
   { href: '/chart-of-accounts', label: 'Chart of Accounts', icon: ChartIcon },
+  { href: '/departmental-tagging', label: 'Departmental Tagging', icon: TagIcon },
+  { href: '/automated-reversals', label: 'Automated Reversals', icon: ReversalIcon },
   { href: '/settings', label: 'Settings', icon: SettingsIcon },
 ];
 
@@ -19,6 +23,34 @@ function DashboardIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+    </svg>
+  );
+}
+function LedgerIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+  );
+}
+function EntitiesIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+    </svg>
+  );
+}
+function TagIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+    </svg>
+  );
+}
+function ReversalIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
     </svg>
   );
 }
@@ -87,12 +119,42 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     router.push(`${pathname}?${params.toString()}`);
   };
 
+  const supabase = getSupabaseBrowser();
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  useEffect(() => {
+    if (!supabase) {
+      setUserEmail('Alex Morgan');
+      return;
+    }
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUserEmail(user?.email ?? null);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        setUserEmail(user?.email ?? null);
+      });
+    });
+    return () => subscription.unsubscribe();
+  }, [supabase]);
+
+  async function handleSignOut() {
+    setUserOpen(false);
+    if (supabase) {
+      await supabase.auth.signOut();
+      router.push('/login');
+      router.refresh();
+    }
+  }
+
+  const displayName = userEmail ?? 'User';
+
   return (
-    <div className="flex min-h-screen bg-slate-50/95 text-slate-900">
-      <aside className="sidebar flex w-56 flex-col border-r border-slate-200/80 bg-white/80 shadow-sm backdrop-blur-sm">
-        <div className="border-b border-slate-200/80 px-4 py-4">
-          <Link href="/" className="text-lg font-semibold tracking-tight text-slate-900">
-            Oryens Ledger
+    <div className="flex min-h-screen bg-slate-50/95 text-[var(--oryens-slate)]">
+      <aside className="sidebar flex w-56 flex-col border-r border-slate-800 bg-slate-900 shadow-sm">
+        <div className="border-b border-slate-800 px-4 py-4">
+          <Link href="/" className="flex items-center gap-2">
+            <OryensLogo size={32} />
+            <span className="font-semibold tracking-tight text-white">Oryens</span>
           </Link>
         </div>
         <div className="relative flex-1 px-3 py-4">
@@ -103,10 +165,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <Link
                   key={item.href}
                   href={item.href + (activeTenantId ? `?tenantId=${encodeURIComponent(activeTenantId)}` : '')}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                  className={`flex items-center gap-3 rounded-r-lg border-l-4 py-2.5 pl-3 pr-3 text-sm font-medium transition-colors ${
                     isActive
-                      ? 'bg-indigo-50 text-indigo-700'
-                      : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                      ? 'border-emerald-500 bg-slate-800 text-white'
+                      : 'border-transparent text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
                   }`}
                 >
                   <item.icon className="h-5 w-5 shrink-0" />
@@ -116,33 +178,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             })}
           </nav>
           {(showTenantSwitcher || currentTenantName) && (
-            <div className="mt-6 border-t border-slate-200/80 pt-4">
-              <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Tenant
+            <div className="mt-6 border-t border-slate-800 pt-4">
+              <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Company
               </p>
               {showTenantSwitcher ? (
                 <div className="relative">
                   <button
                     type="button"
                     onClick={() => { setTenantOpen((o) => !o); setUserOpen(false); }}
-                    className="flex w-full items-center gap-2 rounded-lg border border-slate-200/80 bg-white/80 px-3 py-2 text-left text-sm text-slate-700 shadow-sm hover:bg-slate-50/80"
+                    className="flex w-full items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-left text-sm text-slate-200 shadow-sm hover:bg-slate-700/80"
                   >
                     <span className="min-w-0 truncate">{currentTenantName || 'Select company'}</span>
-                    <svg className="h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="h-4 w-4 shrink-0 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
                   {tenantOpen && (
                     <>
                       <div className="fixed inset-0 z-10" aria-hidden onClick={() => setTenantOpen(false)} />
-                      <ul className="absolute left-0 right-0 top-full z-20 mt-1 max-h-48 overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                      <ul className="absolute left-0 right-0 top-full z-20 mt-1 max-h-48 overflow-auto rounded-lg border border-slate-700 bg-slate-800 py-1 shadow-lg">
                         {userTenants.map((t) => (
                           <li key={t.tenantId}>
                             <button
                               type="button"
                               onClick={() => setTenant(t.tenantId)}
-                              className={`w-full px-3 py-2 text-left text-sm hover:bg-slate-50 ${
-                                activeTenantId === t.tenantId ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700'
+                              className={`w-full px-3 py-2 text-left text-sm hover:bg-slate-700 ${
+                                activeTenantId === t.tenantId ? 'bg-slate-700 text-emerald-400' : 'text-slate-200'
                               }`}
                             >
                               {t.name}
@@ -157,7 +219,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   )}
                 </div>
               ) : (
-                <div className="rounded-lg border border-slate-200/80 bg-white/80 px-3 py-2 text-sm text-slate-700">
+                <div className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200">
                   <span className="min-w-0 truncate">{currentTenantName || '—'}</span>
                 </div>
               )}
@@ -186,10 +248,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 onClick={() => { setUserOpen((o) => !o); setTenantOpen(false); }}
                 className="flex items-center gap-2 rounded-lg border border-slate-200/80 bg-white/80 px-3 py-2 text-sm text-slate-700 shadow-sm hover:bg-slate-50/80"
               >
-                <span className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-medium">
-                  {MOCK_USER_NAME.slice(0, 1)}
+                <span className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-medium">
+                  {displayName.slice(0, 1).toUpperCase()}
                 </span>
-                <span className="hidden sm:inline">Logged in as {MOCK_USER_NAME}</span>
+                <span className="hidden sm:inline">Logged in as {displayName}</span>
                 <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
@@ -199,21 +261,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <div className="fixed inset-0 z-10" aria-hidden onClick={() => setUserOpen(false)} />
                   <div className="absolute right-0 top-full z-20 mt-1 w-56 rounded-lg border border-slate-200 bg-white py-2 shadow-lg">
                     <div className="border-b border-slate-100 px-4 py-2 text-sm text-slate-500">
-                      Logged in as <span className="font-medium text-slate-700">{MOCK_USER_NAME}</span>
+                      Logged in as <span className="font-medium text-slate-700">{displayName}</span>
                     </div>
                     <button
                       type="button"
                       className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
                       onClick={() => setUserOpen(false)}
                     >
-                      Profile (mock)
+                      Profile
                     </button>
                     <button
                       type="button"
                       className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
-                      onClick={() => setUserOpen(false)}
+                      onClick={handleSignOut}
                     >
-                      Sign out (mock)
+                      Sign out
                     </button>
                   </div>
                 </>

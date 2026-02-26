@@ -47,24 +47,55 @@ async function getSupabaseUserId(request: NextRequest): Promise<string | null> {
   return user?.id ?? null;
 }
 
+export type TenantRole = 'OWNER' | 'EDITOR' | 'VIEWER';
+
+export type UserTenantRow = { tenantId: string; role: TenantRole };
+
 /**
  * Query user_tenants for the given user id. Returns list of tenant_id strings.
  */
 async function getTenantIdsForUser(userId: string): Promise<string[]> {
+  const rows = await getTenantRowsForUser(userId);
+  return rows.map((r) => r.tenantId);
+}
+
+/**
+ * Query user_tenants for the given user id. Returns tenant_id and role (default OWNER if column missing).
+ */
+async function getTenantRowsForUser(userId: string): Promise<UserTenantRow[]> {
   const dbUrl = process.env.DATABASE_URL;
   if (!dbUrl) return [];
   const pg = await import('pg');
   const client = new pg.default.Client({ connectionString: dbUrl });
   try {
     await client.connect();
-    const res = await client.query<{ tenant_id: string }>(
-      'SELECT tenant_id FROM user_tenants WHERE user_id = $1 ORDER BY tenant_id',
+    const res = await client.query<{ tenant_id: string; role: string | null }>(
+      `SELECT tenant_id, COALESCE(role, 'OWNER') AS role FROM user_tenants WHERE user_id = $1 ORDER BY tenant_id`,
       [userId]
     );
-    return res.rows.map((r) => r.tenant_id);
+    return res.rows.map((r) => ({
+      tenantId: r.tenant_id,
+      role: (r.role === 'EDITOR' || r.role === 'VIEWER' ? r.role : 'OWNER') as TenantRole,
+    }));
   } finally {
     await client.end();
   }
+}
+
+/**
+ * Returns (tenantId, role)[] for the current user. Used for RBAC and tenant list with role.
+ */
+export async function getRequestUserTenantRows(request: NextRequest): Promise<UserTenantRow[]> {
+  if (DEBUG_MODE && MOCK_USER_TENANT_ID) {
+    return [{ tenantId: MOCK_USER_TENANT_ID, role: 'OWNER' }];
+  }
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    const one = getRequestUserTenantIdFallback(request);
+    return one ? [{ tenantId: one, role: 'OWNER' }] : [];
+  }
+  const userId = await getSupabaseUserId(request);
+  if (!userId) return [];
+  return getTenantRowsForUser(userId);
 }
 
 /**
@@ -85,22 +116,34 @@ export async function getRequestUserTenantIds(request: NextRequest): Promise<str
   return ids;
 }
 
+/** Returns a 401 NextResponse; return from route handlers when received. */
+function unauthorized401(): NextResponse {
+  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+}
+
 /**
- * Resolves the current user's single tenant ID for the request.
- * Uses Supabase session + user_tenants; returns first tenant or null.
- * When Supabase is not configured (or DEBUG_MODE with mock): uses header/cookie/mock fallback.
- * Caller should return 401 when null if auth is required.
+ * Resolves the current user's single tenant ID for the request (security bridge).
+ * - Gets the Supabase session from the request.
+ * - Queries public.user_tenants for the tenant_id belonging to auth.uid().
+ * - When Supabase is configured: returns a 401 response if no session or no user_tenants link (caller must return it).
+ * - When Supabase is not configured (or DEBUG_MODE with mock): returns fallback or null for dev.
  */
-export async function getRequestUserTenantId(request: NextRequest): Promise<string | null> {
+export async function getRequestUserTenantId(request: NextRequest): Promise<string | null | NextResponse> {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     return getRequestUserTenantIdFallback(request);
   }
   if (DEBUG_MODE && MOCK_USER_TENANT_ID) {
     return MOCK_USER_TENANT_ID;
   }
-  const ids = await getRequestUserTenantIds(request);
-  if (ids.length > 0) return ids[0];
-  return null;
+  const userId = await getSupabaseUserId(request);
+  if (!userId) {
+    return unauthorized401();
+  }
+  const ids = await getTenantIdsForUser(userId);
+  if (ids.length === 0) {
+    return unauthorized401();
+  }
+  return ids[0];
 }
 
 /**

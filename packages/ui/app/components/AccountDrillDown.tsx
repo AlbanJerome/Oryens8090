@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useLocale } from '../context/LocaleContext';
+import { OryensSpinner } from './OryensSpinner';
 
 export type JournalLineRow = {
   id: string;
@@ -166,8 +167,9 @@ export function AccountDrillDown({
 
         <div className="flex-1 overflow-hidden flex flex-col">
           {loading && (
-            <div className="px-5 py-8 text-center text-slate-500">
-              Loading lines…
+            <div className="flex flex-col items-center gap-3 px-5 py-8 text-center text-slate-500" aria-label="Loading">
+              <OryensSpinner className="oryens-spinner" />
+              <span className="text-sm">Loading lines…</span>
             </div>
           )}
           {error && (

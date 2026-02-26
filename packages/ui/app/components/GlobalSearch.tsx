@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTenantStore } from '../store/tenant-store';
+import { OryensSpinner } from './OryensSpinner';
 
 type AccountOption = { code: string; name: string };
 
@@ -148,7 +149,10 @@ export function GlobalSearch({
           className="mt-2 max-h-64 overflow-auto py-1"
         >
           {loading && (
-            <li className="px-3 py-4 text-center text-sm text-slate-500">Loading accounts…</li>
+            <li className="flex flex-col items-center gap-2 px-3 py-4 text-center text-sm text-slate-500">
+              <OryensSpinner className="oryens-spinner" />
+              Loading accounts…
+            </li>
           )}
           {!loading && filtered.length === 0 && (
             <li className="px-3 py-4 text-center text-sm text-slate-500">No accounts match.</li>
@@ -160,7 +164,7 @@ export function GlobalSearch({
                   type="button"
                   onClick={() => handleSelect(item)}
                   className={`flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left text-sm ${
-                    i === selectedIndex ? 'bg-indigo-50 text-indigo-900' : 'text-slate-700 hover:bg-slate-50'
+                    i === selectedIndex ? 'bg-emerald-50 text-emerald-900' : 'text-slate-700 hover:bg-slate-50'
                   }`}
                 >
                   <span className="font-medium">{item.name}</span>

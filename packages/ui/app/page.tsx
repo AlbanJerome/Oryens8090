@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { NewJournalEntry } from './components/NewJournalEntry';
 import { AccountDrillDown } from './components/AccountDrillDown';
 import { DashboardAlerts } from './components/DashboardAlerts';
+import { LoadingSkeleton } from './components/LoadingSkeleton';
+import { usePermissions } from './hooks/usePermissions';
 import { useLocale } from './context/LocaleContext';
 import { useTenantStore } from './store/tenant-store';
 
@@ -194,10 +196,8 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 text-slate-900">
-        <div className="mx-auto max-w-4xl px-6 py-12">
-          <p className="text-slate-500">Loading consolidated balance sheet…</p>
-        </div>
+      <div className="min-h-screen bg-slate-50">
+        <LoadingSkeleton />
       </div>
     );
   }
@@ -215,13 +215,15 @@ export default function Home() {
 
   if (tenantsLoaded && !discovery) {
     return (
-      <div className="min-h-screen bg-slate-50 text-slate-900">
-        <div className="mx-auto max-w-4xl px-6 py-12">
-          <h1 className="text-xl font-semibold text-slate-900">Oryens Ledger</h1>
-          <p className="mt-4 text-slate-600">
-            {activeTenantId ? 'No root entity found for this company.' : 'Loading company context…'}
-          </p>
-        </div>
+      <div className="min-h-screen bg-slate-50">
+        {activeTenantId ? (
+          <div className="mx-auto max-w-4xl px-6 py-12">
+            <h1 className="text-xl font-semibold text-[var(--oryens-slate)]">Oryens</h1>
+            <p className="mt-4 text-[var(--oryens-slate-muted)]">No root entity found for this company.</p>
+          </div>
+        ) : (
+          <LoadingSkeleton />
+        )}
       </div>
     );
   }
@@ -344,6 +346,7 @@ function DashboardContent({
   setLedgerHealth: (h: { exceptions: { type: string; entryId: string; lineId?: string; accountCode?: string; reason: string; humanReadable: string }[]; closeReadinessScore: number } | null) => void;
 }) {
   const { formatCurrency, formatDate, formatDateMedium } = useLocale();
+  const { canPost } = usePermissions();
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -456,7 +459,7 @@ function DashboardContent({
             )
           )}
           <div className="ml-auto flex items-center gap-2">
-            {discovery && (
+            {canPost && discovery && (
               <button
                 type="button"
                 onClick={async () => {
@@ -481,13 +484,15 @@ function DashboardContent({
                 {revalueLoading ? 'Revaluing…' : 'Revalue'}
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => setNewEntryOpen(true)}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700"
-            >
-              New Entry
-            </button>
+            {canPost && (
+              <button
+                type="button"
+                onClick={() => setNewEntryOpen(true)}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700"
+              >
+                New Entry
+              </button>
+            )}
           </div>
         </header>
 
@@ -643,7 +648,7 @@ function DashboardContent({
           className="rounded-xl border border-slate-200/80 bg-white/95 shadow-sm backdrop-blur-sm animate-[fade-in_0.25s_ease-out] print:border-0 print:shadow-none"
         >
           <div className="overflow-x-auto">
-            <table className="balance-sheet-table w-full min-w-[32rem] table-fixed text-left print:min-w-0">
+            <table className="balance-sheet-table saas-table w-full min-w-[32rem] table-fixed text-left print:min-w-0">
               <colgroup>
                 <col className="w-[45%]" />
                 <col className="w-[25%]" />

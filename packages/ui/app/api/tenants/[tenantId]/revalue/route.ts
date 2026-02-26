@@ -4,6 +4,9 @@ import { getRate } from '../../../../lib/currency-service';
 
 const REPORTING_CURRENCY = 'USD';
 
+/** Currencies with no minor unit: amount is stored in whole units (e.g. JPY). Others are stored in cents. */
+const NO_SUBUNIT_CURRENCIES = ['JPY', 'CNY'];
+
 export type RevalueItem = {
   lineId: string;
   entryId: string;
@@ -89,7 +92,10 @@ export async function GET(
         const txCents = Number(r.transaction_amount_cents);
         const txCurrency = String(r.transaction_currency_code).toUpperCase();
         const currentRate = await getRate(txCurrency, REPORTING_CURRENCY);
-        const currentValueCents = Math.round(txCents * currentRate * 100);
+        // For JPY/CNY, txCents is in whole units → *100 to get reporting cents; for USD etc. txCents is already in cents.
+        const currentValueCents = NO_SUBUNIT_CURRENCIES.includes(txCurrency)
+          ? Math.round(txCents * currentRate * 100)
+          : Math.round(txCents * currentRate);
         const unrealizedCents = currentValueCents - reportingAmountCents;
 
         items.push({

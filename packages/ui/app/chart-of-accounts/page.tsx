@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useTenantStore } from '../store/tenant-store';
+import { OryensSpinner } from '../components/OryensSpinner';
 
 type AccountItem = { id: string; code: string; name: string; accountType: string };
 
@@ -40,8 +41,9 @@ export default function ChartOfAccountsPage() {
 
   if (loadingState) {
     return (
-      <div className="mx-auto max-w-4xl px-6 py-12">
-        <p className="text-slate-500">Loading chart of accounts…</p>
+      <div className="mx-auto flex max-w-4xl flex-col items-center gap-3 px-6 py-12" aria-label="Loading">
+        <OryensSpinner className="oryens-spinner" />
+        <span className="text-sm text-slate-500">Loading chart of accounts…</span>
       </div>
     );
   }
@@ -62,7 +64,7 @@ export default function ChartOfAccountsPage() {
         <p className="mt-1 text-sm text-slate-500">All accounts for this tenant.</p>
       </header>
       <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white/80 shadow-sm">
-        <table className="w-full text-left text-sm">
+        <table className="saas-table">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50/80">
               <th className="px-5 py-3 font-semibold text-slate-600">Code</th>
@@ -75,7 +77,9 @@ export default function ChartOfAccountsPage() {
               <tr key={a.id} className="border-b border-slate-100 last:border-b-0">
                 <td className="px-5 py-3 font-mono text-slate-700">{a.code}</td>
                 <td className="px-5 py-3 text-slate-800">{a.name}</td>
-                <td className="px-5 py-3 text-slate-600">{a.accountType}</td>
+                <td className="px-5 py-3">
+                  <span className="oryens-status-badge">{a.accountType}</span>
+                </td>
               </tr>
             ))}
           </tbody>

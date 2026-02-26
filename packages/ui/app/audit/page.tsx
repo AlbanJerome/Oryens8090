@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useLocale } from '../context/LocaleContext';
 import { useTenantStore } from '../store/tenant-store';
+import { OryensSpinner } from '../components/OryensSpinner';
 
 type DiscoveryResponse = {
   tenantId: string;
@@ -228,10 +229,9 @@ export default function AuditPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 text-slate-900">
-        <div className="mx-auto max-w-6xl px-6 py-12">
-          <p className="text-slate-500">Loading audit log…</p>
-        </div>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-slate-50 px-6 py-12" aria-label="Loading">
+        <OryensSpinner className="oryens-spinner" />
+        <span className="text-sm text-slate-500">Loading audit log…</span>
       </div>
     );
   }
@@ -271,7 +271,7 @@ export default function AuditPage() {
 
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[56rem] text-left text-sm">
+            <table className="saas-table w-full min-w-[56rem] text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/80">
                   <th className="px-4 py-3 font-semibold uppercase tracking-wider text-slate-500">
@@ -326,8 +326,8 @@ export default function AuditPage() {
                           <td className="px-4 py-3 font-mono text-slate-700">
                             {row.userId ?? '—'}
                           </td>
-                          <td className="px-4 py-3 font-medium text-slate-800">
-                            {row.action}
+                          <td className="px-4 py-3">
+                            <span className="oryens-status-badge">{row.action}</span>
                           </td>
                           <td className="px-4 py-3 text-slate-700">
                             {getEntityDisplayName(row, discovery)}
@@ -358,7 +358,7 @@ export default function AuditPage() {
                           </td>
                         </tr>
                         {isExpanded && (
-                          <tr className="border-b border-slate-100 bg-slate-50/30">
+                          <tr className="oryens-row-active border-b border-slate-100">
                             <td colSpan={8} className="px-4 py-3">
                               <MiniLedger payload={row.payload} accountCodeToName={accountCodeToName} formatCurrency={formatCurrency} />
                             </td>

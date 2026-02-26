@@ -45,7 +45,7 @@ export async function GET(
     if (!dbUrl) throw new Error('DATABASE_URL is not defined');
 
     const pg = await import('pg');
-    const client = new pg.default.Client({ connectionString: dbUrl }) as unknown as PgClient;
+    const client = new pg.default.Client({ connectionString: dbUrl }) as unknown as PgClient & { connect(): Promise<void>; end(): Promise<void> };
     await client.connect();
 
     try {

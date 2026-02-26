@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRequestUserTenantIds } from '@/app/lib/tenant-guard';
+import { getRequestUserTenantRows, type TenantRole } from '@/app/lib/tenant-guard';
 
-export type TenantOption = { tenantId: string; name: string };
+export type TenantOption = { tenantId: string; name: string; role: TenantRole };
 
 const DEBUG_MODE = process.env.DEBUG_MODE === 'true';
 
 /**
- * GET /api/tenants — returns list of tenants the user is authorized to see (from user_tenants).
+ * GET /api/tenants — returns list of tenants the user is authorized to see (from user_tenants) with role.
  * When Supabase is configured: requires session and returns 401 if none; returns only tenants from user_tenants.
  */
 export async function GET(request: NextRequest) {
@@ -15,9 +15,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'DATABASE_URL is not configured' }, { status: 500 });
   }
 
-  const userTenantIds = await getRequestUserTenantIds(request);
+  const userRows = await getRequestUserTenantRows(request);
+  const userTenantIds = userRows.map((r) => r.tenantId);
+  const roleByTenant = new Map(userRows.map((r) => [r.tenantId, r.role]));
 
-  if (!DEBUG_MODE && userTenantIds.length === 0 && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+  const devFallback = process.env.NODE_ENV === 'development';
+  if (!DEBUG_MODE && userTenantIds.length === 0 && process.env.NEXT_PUBLIC_SUPABASE_URL && !devFallback) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -46,6 +49,7 @@ export async function GET(request: NextRequest) {
       const tenants: TenantOption[] = (res.rows as { tenant_id: string; name: string | null }[]).map((r) => ({
         tenantId: r.tenant_id,
         name: r.name ?? r.tenant_id,
+        role: roleByTenant.get(r.tenant_id) ?? 'VIEWER',
       }));
 
       return NextResponse.json({ tenants });

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { CreateJournalEntryCommandValidator } from '@oryens/core';
+import { CreateJournalEntryCommandValidator, type CreateJournalEntryCommand } from '@oryens/core';
 import { useLocale } from '../context/LocaleContext';
 import { getRate } from '../lib/currency-service';
 
@@ -401,7 +401,7 @@ export function NewJournalEntry({ open, onClose, tenantId, entityId, onSuccess }
   }), [tenantId, entityId, postingDate, description, lines, baseCurrency]);
 
   const validation = useMemo(
-    () => CreateJournalEntryCommandValidator.validate(draftCommand),
+    () => CreateJournalEntryCommandValidator.validate(draftCommand as CreateJournalEntryCommand),
     [draftCommand]
   );
 

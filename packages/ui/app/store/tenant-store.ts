@@ -6,7 +6,8 @@ import {
   setActiveTenantIdCookie,
 } from '../lib/cookies';
 
-export type TenantOption = { tenantId: string; name: string };
+export type TenantRole = 'OWNER' | 'EDITOR' | 'VIEWER';
+export type TenantOption = { tenantId: string; name: string; role?: TenantRole };
 
 export type DiscoveryState = {
   tenantId: string;
@@ -40,18 +41,24 @@ export const useTenantStore = create<TenantState>((set, get) => ({
     try {
       const res = await fetch('/api/tenants');
       const data = (await res.ok ? res.json() : { tenants: [] }) as { tenants?: TenantOption[] };
-      const list = data.tenants ?? [];
+      const list = (data.tenants ?? []).map((t) => ({ ...t, role: t.role ?? 'VIEWER' as TenantRole }));
       const singleTenantId = list.length === 1 ? list[0].tenantId : null;
+      const { activeTenantId: prevActive } = get();
+      const fromCookie = getActiveTenantIdFromCookie();
+      const current = prevActive ?? fromCookie;
+      const inList = list.length > 0 && list.some((t) => t.tenantId === current);
+      const resolvedActive = singleTenantId ?? (inList ? current : list[0]?.tenantId ?? null) ?? null;
       set({
         userTenants: list,
         tenantsLoaded: true,
-        ...(singleTenantId ? { activeTenantId: singleTenantId } : {}),
+        activeTenantId: resolvedActive,
       });
-      const { hydrateFromCookieAndTenants, loadDiscovery } = get();
-      hydrateFromCookieAndTenants();
-      const state = get();
-      if (state.activeTenantId) {
-        await loadDiscovery(state.activeTenantId);
+      if (resolvedActive) {
+        setActiveTenantIdCookie(resolvedActive);
+      }
+      const { loadDiscovery } = get();
+      if (resolvedActive) {
+        await loadDiscovery(resolvedActive);
       }
     } catch {
       set({ userTenants: [], tenantsLoaded: true });

@@ -1,13 +1,40 @@
 @import "tailwindcss";
 
+/* Oryens brand palette (8090): slate-950 deep BG, emerald-500 primary, indigo-400 secondary */
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #0f172a;
+  --font-geist-sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-geist-mono: ui-monospace, "Cascadia Code", "Source Code Pro", monospace;
+  --oryens-slate-950: #020617;
+  --oryens-slate-900: #0f172a;
+  --oryens-slate: #0f172a;
+  --oryens-slate-muted: #64748b;
+  --oryens-emerald-500: #10b981;
+  --oryens-emerald-400: #34d399;
+  --oryens-emerald-muted: #d1fae5;
+  --oryens-indigo-400: #818cf8;
+  --oryens-indigo: #3730a3;
+  --oryens-indigo-light: #4f46e5;
+  --oryens-indigo-muted: #e0e7ff;
+  --oryens-emerald: #059669;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  /* Oryens 8090 brand */
+  --color-brand-primary: #10b981;
+  --color-brand-dark: #020617;
+  --color-oryens-slate-950: var(--oryens-slate-950);
+  --color-oryens-emerald-500: var(--oryens-emerald-500);
+  --color-oryens-emerald-400: var(--oryens-emerald-400);
+  --color-oryens-indigo-400: var(--oryens-indigo-400);
+  --color-oryens-indigo: var(--oryens-indigo);
+  --color-oryens-indigo-light: var(--oryens-indigo-light);
+  --color-oryens-indigo-muted: var(--oryens-indigo-muted);
+  --color-oryens-slate: var(--oryens-slate);
+  --color-oryens-emerald: var(--oryens-emerald);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -22,7 +49,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans, ui-sans-serif, system-ui, sans-serif);
 }
 
 @keyframes fade-in {
@@ -48,12 +75,97 @@ body {
   animation: magic-fill 0.5s ease-out;
 }
 
-/* Clean SaaS / glassmorphism: soft shadows and consistent surfaces */
+/* Oryens branded loading: shimmer and spinner */
+@keyframes oryens-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes oryens-shimmer-light {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes oryens-spin {
+  to { transform: rotate(360deg); }
+}
+.oryens-shimmer {
+  /* Dark variant: auth / dark panels */
+  background: linear-gradient(
+    90deg,
+    var(--oryens-slate-950, #020617) 0%,
+    var(--oryens-indigo-400, #818cf8) 50%,
+    var(--oryens-slate-950, #020617) 100%
+  );
+  background-size: 200% 100%;
+  animation: oryens-shimmer 1.5s ease-in-out infinite;
+}
+.oryens-shimmer-light {
+  /* Light variant: in-app skeleton on slate-50 */
+  background: linear-gradient(
+    90deg,
+    #e2e8f0 0%,
+    #cbd5e1 35%,
+    #94a3b8 50%,
+    #cbd5e1 65%,
+    #e2e8f0 100%
+  );
+  background-size: 200% 100%;
+  animation: oryens-shimmer-light 1.5s ease-in-out infinite;
+}
+.oryens-spinner {
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 2px solid var(--oryens-indigo-muted);
+  border-top-color: var(--oryens-emerald-500);
+  border-radius: 50%;
+  animation: oryens-spin 0.7s linear infinite;
+}
+
+/* Oryens SaaS: modern spaced tables and surfaces */
 .saas-card {
   @apply rounded-xl border border-slate-200/80 bg-white/95 shadow-sm backdrop-blur-sm;
 }
 .saas-panel {
   @apply rounded-lg border border-slate-200/80 bg-white/80 shadow-sm backdrop-blur-sm;
+}
+.saas-table {
+  @apply w-full border-collapse text-left text-sm;
+}
+.saas-table th {
+  @apply border-b border-slate-200 bg-slate-50/80 px-4 py-3 font-semibold text-slate-700;
+}
+.saas-table td {
+  @apply border-b border-slate-100 px-4 py-3 text-slate-700;
+}
+.saas-table tbody tr:hover {
+  @apply bg-slate-50/50;
+}
+.saas-table tbody tr.oryens-row-active,
+.saas-table .oryens-status-active {
+  @apply bg-[var(--oryens-emerald-muted)]/50;
+}
+.saas-table .oryens-status-badge {
+  @apply rounded-full px-2 py-0.5 text-xs font-medium text-[var(--oryens-emerald)] bg-[var(--oryens-emerald-muted)];
+}
+
+/* Auth primary CTA: emerald gradient + hover glow (premium 2026 SaaS) */
+.oryens-btn-primary {
+  background: linear-gradient(135deg, var(--oryens-emerald-500) 0%, var(--oryens-emerald, #059669) 100%);
+  color: white;
+  font-weight: 500;
+  border-radius: 0.5rem;
+  padding: 0.625rem 1rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: box-shadow 0.2s ease, transform 0.15s ease;
+}
+.oryens-btn-primary:hover:not(:disabled) {
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.3), 0 4px 14px rgba(16, 185, 129, 0.35);
+}
+.oryens-btn-primary:active:not(:disabled) {
+  transform: scale(0.99);
+}
+.oryens-btn-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 /* Print: hide navigation and controls so only the Balance Sheet remains */

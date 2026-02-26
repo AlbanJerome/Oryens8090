@@ -6,8 +6,6 @@ import {
   JournalEntryService,
   IdempotencyService,
   AuditLoggerService,
-  JournalEntry,
-  JournalEntryLine,
   Account,
   AccountNotFoundError,
   PeriodClosedError,
@@ -16,8 +14,36 @@ import {
   type AuditLogEntry,
 } from '@oryens/core';
 
-type JournalEntryLike = InstanceType<typeof JournalEntry>;
-type JournalEntryLineLike = InstanceType<typeof JournalEntryLine>;
+/** Shape used by repo save(); avoids InstanceType on class with private constructor. */
+interface JournalEntryLineLike {
+  id: string;
+  entryId: string;
+  accountCode: string;
+  debitAmount: { toCents(): number };
+  creditAmount: { toCents(): number };
+  description?: string;
+  metadata?: Record<string, unknown>;
+  transactionAmountCents?: number;
+  transactionCurrencyCode?: string;
+  exchangeRate?: number;
+}
+
+interface JournalEntryLike {
+  id: string;
+  tenantId: string;
+  entityId: string;
+  postingDate: Date;
+  sourceModule: string;
+  sourceDocumentId: string;
+  sourceDocumentType: string;
+  description: string;
+  isIntercompany?: boolean;
+  validTimeStart?: Date;
+  version?: number;
+  createdBy?: string;
+  metadata?: Record<string, unknown>;
+  lines: readonly JournalEntryLineLike[];
+}
 
 function createJournalEntryRepo(client: PgClient) {
   return {
@@ -125,7 +151,8 @@ function createPeriodRepo(client: PgClient, tenantId: string) {
         `SELECT id, tenant_id, name, start_date, end_date, status FROM accounting_periods WHERE tenant_id = $1 AND $2::date >= start_date AND $2::date <= end_date ORDER BY end_date DESC LIMIT 1`,
         [tenantId, dateStr]
       );
-      const r = res.rows[0] as { id: string; tenant_id: string; name: string; start_date: Date; end_date: Date; status: string } | undefined;
+      type PeriodRow = { id: string; tenant_id: string; name: string; start_date: Date; end_date: Date; status: string };
+      const r = res.rows[0] as unknown as PeriodRow | undefined;
       if (!r) {
         return { allowed: false, period: null, reason: 'No period found for date' };
       }
@@ -184,6 +211,9 @@ export async function POST(
       creditAmountCents: number;
       description?: string;
       metadata?: Record<string, string | number | boolean>;
+      transactionAmountCents?: number;
+      transactionCurrencyCode?: string;
+      exchangeRate?: number;
     }>;
     createdBy?: string;
     metadata?: Record<string, string | number | boolean>;
@@ -236,7 +266,7 @@ export async function POST(
     if (!dbUrl) throw new Error('DATABASE_URL is not defined');
 
     const pg = await import('pg');
-    const client = new pg.default.Client({ connectionString: dbUrl }) as unknown as PgClient;
+    const client = new pg.default.Client({ connectionString: dbUrl }) as unknown as PgClient & { connect(): Promise<void>; end(): Promise<void> };
     await client.connect();
 
     try {

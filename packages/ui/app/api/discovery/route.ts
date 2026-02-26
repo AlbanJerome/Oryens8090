@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getRequestUserTenantId } from '@/app/lib/tenant-guard';
 
 const DEBUG_MODE = process.env.DEBUG_MODE === 'true';
+const MOCK_USER_TENANT_ID = process.env.MOCK_USER_TENANT_ID ?? '';
 
 export async function GET(request: NextRequest) {
   const dbUrl = process.env.DATABASE_URL;
@@ -14,14 +15,20 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const tenantIdParam = searchParams.get('tenantId');
-  const userTenantId = await getRequestUserTenantId(request);
+  const userTenantIdOr401 = await getRequestUserTenantId(request);
+  if (userTenantIdOr401 instanceof NextResponse) return userTenantIdOr401;
+  const userTenantId = userTenantIdOr401;
 
-  // Tenant isolation: in production, only allow discovery for the user's tenant
-  const effectiveTenantId =
-    userTenantId && !DEBUG_MODE
-      ? userTenantId
-      : tenantIdParam ?? null;
-  if (userTenantId && !DEBUG_MODE && tenantIdParam && tenantIdParam !== userTenantId) {
+  // Security: 401 if no session/link unless local dev with mock bypass or development fallback
+  const allowBypass = DEBUG_MODE && !!MOCK_USER_TENANT_ID;
+  const devFallback = process.env.NODE_ENV === 'development';
+  if (userTenantId == null && !allowBypass && !devFallback) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Never use tenantIdParam to override session tenant; only for bypass when no session
+  let effectiveTenantId: string | null = userTenantId ?? (allowBypass ? tenantIdParam : null) ?? null;
+  if (userTenantId != null && tenantIdParam != null && tenantIdParam !== userTenantId) {
     return NextResponse.json(
       { error: 'Forbidden: you do not have access to this tenant.' },
       { status: 403 }
@@ -34,6 +41,16 @@ export async function GET(request: NextRequest) {
     await client.connect();
 
     try {
+      // Local dev: if no session, use first available tenant from tenants table
+      if (effectiveTenantId == null && devFallback) {
+        const firstTenant = await client.query<{ id: string }>(
+          'SELECT id FROM tenants ORDER BY created_at ASC LIMIT 1'
+        );
+        if (firstTenant.rows.length > 0) {
+          effectiveTenantId = firstTenant.rows[0].id;
+        }
+      }
+
       const res = effectiveTenantId
         ? await client.query(
             `SELECT tenant_id, id, name
